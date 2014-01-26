@@ -1,0 +1,8 @@
+
+# Java gitignore (from GitHub) #
+*.class
+
+# Package Files #
+*.jar
+*.war
+*.ear

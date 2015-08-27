@@ -1,5 +1,0 @@
-
-# scala artifacts to ignore
-.cache
-*.class
-

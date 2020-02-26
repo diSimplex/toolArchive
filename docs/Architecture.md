@@ -119,10 +119,19 @@ will implement the following (high-level) system:
 
 ### Principles
 
-1. Keep the clients and workers simple. They are already complex enough 
+1. Used by an individual or a *small* workgroup, to be run on private 
+   resources (which might include one or more Cloud VPSs). (We are NOT 
+   designing for a large production environment).
+
+2. Allow a federation of Nurseries consisting of ONE primary and 
+   potentially many secondary Nurseries. 
+
+3. There will be ONE Nursery on any given machine.
+
+4. Keep the clients and workers simple. They are already complex enough 
    with their own tasks (for example ConTeXt and GCC/JoyLoL).
 
-2. Use as much asynchrony as possible. 
+5. Use as much asynchrony as possible. 
 
    GoLang provides a very disciplined approach to multi-processing and 
    asynchrony.
@@ -130,20 +139,20 @@ will implement the following (high-level) system:
    Lua (as embedded in LuaTeX) has an associated binding of the libuv 
    asynchrony library. ([luvit/luv](https://github.com/luvit/luv))
 
-3. Keep the "wire protocols" simple. Reuse existing libraries of each tool.
+6. Keep the "wire protocols" simple. Reuse existing libraries of each tool.
 
    Again, as inspired by OverLeaf's CLSI, we will use a RESTful/JSON based 
    Protocol. This allows us to use existing Network Libraries in both Lua. 
    LuaTeX, and GoLang.
 
-4. Place the "build" smarts into a (configurable) "task-manager".
+7. Place the "build" smarts into a (configurable) "task-manager".
 
    It will be critical that this task-manager is able to capture the 
    evolving dependencies *as the typesetting takes place*.
 
    The evolving build dependencies should be browsable as a web-site.
 
-5. Provide a (caching) workspace-manager to manage intermediate artifacts 
+8. Provide a (caching) workspace-manager to manage intermediate artifacts 
    and allow the task-manager to determine if any thing has changed.
 
    This workspace-manager should be both federated and able to be browsed 
@@ -153,12 +162,23 @@ will implement the following (high-level) system:
    allow a knowledgable user to view and or copy the intermediate 
    artifacts.
 
-6. Provide a federated "log" manager browsable as a web-site.
+9. Provide a federated "log" manager browsable as a web-site.
 
-7. The combined task-manager / workspace-manager should be implemented in 
+10. The combined task-manager / workspace-manager should be implemented in 
     goLang (to provide robust multi-threading). The task-manager might have 
     an embedded Lua engine to provide scriptability. It will probalby keep 
     its meta-data in an SQLite3 database.
+
+11. Nursery (server) authentication will be done using TLS/HTTPS "Server" 
+    certificates. The ConTeXtNurseryCA (GoLang) tool will issue 
+    certificates as needed. 
+
+12. Each user's browser(s) will need to have the Federation's CA public 
+    certificate loaded into their certificate store.
+
+13. Each user will be issued with there own client certificate using the 
+    ConTeXtNurseryCA tool. This client certificate will need to be loaded 
+    into the user's browser(s) certificate store.
 
 ## Resources
 

@@ -4,6 +4,10 @@
 
 - [zeroMQ's C4](https://rfc.zeromq.org/spec/22/)
 
+### GoLang sources
+
+- [go - Git at Google](https://go.googlesource.com/go)
+
 ### LaTeX discussions of how and when to break up texts
 
 - [Splitting a large document into several 

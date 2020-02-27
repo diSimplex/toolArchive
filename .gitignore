@@ -4,6 +4,8 @@
 # our binaries
 cnConfig/cnConfig
 cnConfig/ca
+cnConfig/servers
+cnConfig/users
 
 # Binaries for programs and plugins
 *.exe

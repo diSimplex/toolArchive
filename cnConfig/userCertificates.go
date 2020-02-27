@@ -29,25 +29,20 @@ import (
   "math/big"
   "log"
   "os"
-  "strings"
   "time"
 )
 
-/////////////////////////////
-// Client Server Certificates
+////////////////////
+// User Certificates
 
-func createNurseryCertificate(theNursery Nursery, nurseryNum int) {
-  if theNursery.Host == "" {
-    log.Printf("cnConfig(WARNING): no host names specified for a Nursery, skipping Nursery[%d]\n", nurseryNum)
+func createUserCertificate(theUser string, userNum int) {
+  if theUser == "" {
+    log.Printf("cnConfig(WARNING): no user name specified for a user, skipping user[%d]\n", userNum)
     return
   }
-  hosts := strings.Split(theNursery.Host, ",")
-  for i, aString := range hosts {
-    hosts[i] = strings.TrimSpace(aString)
-  }
-  fmt.Printf("\nCreating configuration for the [%s] Nursery\n", hosts[0])
+  fmt.Printf("\nCreating configuration for the user [%s]\n", theUser)
 
-  nCert := &x509.Certificate {
+  uCert := &x509.Certificate {
     SerialNumber: big.NewInt(int64(config.Certificate_Authority.Serial_Number)),
     Subject: pkix.Name {
       Organization:  []string{config.Certificate_Authority.Organization},
@@ -63,47 +58,46 @@ func createNurseryCertificate(theNursery Nursery, nurseryNum int) {
                                   int(config.Certificate_Authority.Valid_For.Days)),
     ExtKeyUsage: []x509.ExtKeyUsage{
       x509.ExtKeyUsageClientAuth,
-      x509.ExtKeyUsageServerAuth,
     },
     SubjectKeyId: []byte{1,2,3,4,6},
     KeyUsage:    x509.KeyUsageDigitalSignature,
   }
 
-  nPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
-  configMayBeFatal("could not generate rsa key for ["+hosts[0]+"] Nursery", err)
+  uPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+  configMayBeFatal("could not generate rsa key for user ["+theUser+"]", err)
 
-  nBytes, err := x509.CreateCertificate(rand.Reader, nCert, caCert, &nPrivateKey.PublicKey, caPrivateKey)
-  configMayBeFatal("could not create the certificate for ["+hosts[0]+"] Nursery", err)
+  uBytes, err := x509.CreateCertificate(rand.Reader, uCert, caCert, &uPrivateKey.PublicKey, caPrivateKey)
+  configMayBeFatal("could not create the certificate for user ["+theUser+"]", err)
 
-  nSubject := "ConTeXt Nursery " + config.Federation_Name + " Server Certificate for ["+hosts[0]+"] Nursery"
-  nDate    := time.Now().String()
+  uSubject := "ConTeXt Nursery " + config.Federation_Name + " User Certificate for user ["+theUser+"]"
+  uDate    := time.Now().String()
 
-  nDir := "servers/"+hosts[0]
-  os.MkdirAll(nDir, 0755)
+  uDir := "users/"+theUser
+  os.MkdirAll(uDir, 0755)
 
-  nPEM := new(bytes.Buffer)
-  pem.Encode(nPEM, &pem.Block {
+  uPEM := new(bytes.Buffer)
+  pem.Encode(uPEM, &pem.Block {
     Type:  "CERTIFICATE",
     Headers: map[string]string {
-      "Subject": nSubject,
-      "Date":    nDate,
+      "Subject": uSubject,
+      "Date":    uDate,
     },
-    Bytes: nBytes,
+    Bytes: uBytes,
   })
-  nCertificateFileName := nDir+"/"+hosts[0]+".crt"
-  err = ioutil.WriteFile(nCertificateFileName, nPEM.Bytes(), 0644)
-  configMayBeFatal("could not write the ["+nCertificateFileName+"] file", err)
+  uCertificateFileName := uDir+"/"+theUser+".crt"
+  err = ioutil.WriteFile(uCertificateFileName, uPEM.Bytes(), 0644)
+  configMayBeFatal("could not write the ["+uCertificateFileName+"] file", err)
 
-  nPrivateKeyPEM := new(bytes.Buffer)
-  pem.Encode(nPrivateKeyPEM, &pem.Block {
+  uPrivateKeyPEM := new(bytes.Buffer)
+  pem.Encode(uPrivateKeyPEM, &pem.Block {
     Type: "RSA PRIVATE KEY",
     Headers: map[string]string {
-      "Subject": nSubject,
-      "Date":    nDate,
+      "Subject": uSubject,
+      "Date":    uDate,
     },
-    Bytes: x509.MarshalPKCS1PrivateKey(nPrivateKey),
+    Bytes: x509.MarshalPKCS1PrivateKey(uPrivateKey),
   })
-  nPrivateKeyFileName := nDir+"/"+hosts[0]+".key"
-  err = ioutil.WriteFile(nPrivateKeyFileName, nPrivateKeyPEM.Bytes(), 0644)
-  configMayBeFatal("could not write the ["+nPrivateKeyFileName+"] file", err)
+  uPrivateKeyFileName := uDir+"/"+theUser+".key"
+  err = ioutil.WriteFile(uPrivateKeyFileName, uPrivateKeyPEM.Bytes(), 0644)
+  configMayBeFatal("could not write the ["+uPrivateKeyFileName+"] file", err)
 }

@@ -68,7 +68,7 @@ var config = struct {
 
   Nurseries []Nursery
 
-  Users []string `required`
+  Users []string
 }{}
 
 var configFileName string
@@ -109,5 +109,9 @@ func main() {
 
   for i, aNursery := range config.Nurseries {
     createNurseryCertificate(aNursery, i)
+  }
+
+  for i, aUser := range config.Users {
+    createUserCertificate(aUser, i)
   }
 }

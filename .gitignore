@@ -1,6 +1,9 @@
 *.swp
 *.pdf
 
+# our binaries
+cnConfig/cnConfig
+
 # Binaries for programs and plugins
 *.exe
 *.exe~

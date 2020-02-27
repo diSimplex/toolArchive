@@ -1,0 +1,52 @@
+
+# This is an example configuration for a federation of ConTeXt Nurseries
+
+# We start by giving a name to this federation of nurseries
+federation_name: playGround
+
+# Now we specify the certificate key size... the larger you choose the more 
+# secure the communitcation will be... but it will take more time to 
+# generate
+key_size: 8192
+
+# We must specify details for the Certificate Authority
+certificate_authority:
+  serial_number: 2020
+  organization: Neo-Platonist Mathematicians UnLimited
+  country: Platonia
+  province: Where The Wild Things Are
+  locality: On Beyond Zebra
+  street_address: 42 Is The Answer!
+  postal_code: What Is The Question?
+  valid_for: 
+    years: 10
+    months: 0 
+    days: 0
+
+# We now specify which machines will run a nursery
+
+# We can start by specifying a default port for the nursery's interfaces.
+# This is the port we will use if you do not specify a port for a given 
+# machine in the list of nurseries below
+default_port: 8080
+
+# Now we specify the nurseries host names as well as any non-standard 
+# ports....
+#
+# EXACTLY one of the following nurseries should be declared as the primary 
+# nursery. If there are multiple or none, we choose the first we find...
+#
+# NOTE: The hosts names should be the name used by your (internal) network
+#
+# NOTE: If a given host has multiple names in your network, the host names 
+# can be a comma separated list of these names.
+#
+nurseries:
+  - host: plato01
+    port: 8989
+    primary: true
+  - host: plato02
+
+# Now we provide a list of the individual user's email addresses.
+users:
+  - plato@platonist-maths.com

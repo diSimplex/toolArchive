@@ -3,6 +3,7 @@
 
 # our binaries
 cnConfig/cnConfig
+cnConfig/ca
 
 # Binaries for programs and plugins
 *.exe

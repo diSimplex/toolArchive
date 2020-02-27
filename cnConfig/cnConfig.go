@@ -18,20 +18,12 @@
 package main
 
 import (
-  "bytes"
-  "crypto/rand"
-  "crypto/rsa"
-  "crypto/x509"
-  "crypto/x509/pkix"
   "encoding/json"
-  "encoding/pem"
   "flag"
   "fmt"
   "github.com/jinzhu/configor"
   "log"
-  "math/big"
   "os"
-  "time"
 )
 
 //////////////////////////
@@ -73,6 +65,7 @@ var config = struct {
 var configFileName string
 var showConfig     bool
 
+
 /////////////////////////////
 // Logging and Error handling
 //
@@ -82,54 +75,6 @@ func configMayBeFatal(logMessage string, err error) {
   }
 }
 
-///////////////////////
-// Certificate creation
-//
-func createCA() {
-  fmt.Print("\nCreating the Certificate Authority\n")
-  ca := &x509.Certificate {
-    SerialNumber: big.NewInt(int64(config.Certificate_Authority.Serial_Number)),
-    Subject: pkix.Name {
-      Organization:  []string{config.Certificate_Authority.Organization},
-      Country:       []string{config.Certificate_Authority.Country},
-      Province:      []string{config.Certificate_Authority.Province},
-      Locality:      []string{config.Certificate_Authority.Locality},
-      StreetAddress: []string{config.Certificate_Authority.Street_Address},
-      PostalCode:    []string{config.Certificate_Authority.Postal_Code},
-    },
-    NotBefore: time.Now(),
-    NotAfter:  time.Now().AddDate(int(config.Certificate_Authority.Valid_For.Years),
-                                  int(config.Certificate_Authority.Valid_For.Months),
-                                  int(config.Certificate_Authority.Valid_For.Days)),
-    IsCA:        true,
-    ExtKeyUsage: []x509.ExtKeyUsage{
-      x509.ExtKeyUsageClientAuth,
-      x509.ExtKeyUsageServerAuth,
-    },
-    KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign ,
-    BasicConstraintsValid: true,
-  }
-
-  caPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
-  configMayBeFatal("could not generate rsa key for CA", err)
-
-  caBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &caPrivateKey.PublicKey, caPrivateKey)
-  configMayBeFatal("could not create the CA certificate", err)
-
-  caPEM := new(bytes.Buffer)
-  pem.Encode(caPEM, &pem.Block {
-    Type:  "CERTIFICATE",
-    Bytes: caBytes,
-  })
-
-  caPrivateKeyPEM := new(bytes.Buffer)
-  pem.Encode(caPrivateKeyPEM, &pem.Block {
-    Type: "RSA PRIVATE KEY",
-    Bytes: x509.MarshalPKCS1PrivateKey(caPrivateKey),
-  })
-}
-
-
 func main() {
   const (
     configFileNameDefault =  "nurseries.yaml"
@@ -137,6 +82,7 @@ func main() {
     showConfigDefault     =  false
     showConfigUsage       =  "Show the loaded configuration"
   )
+  flag.BoolVar(&createCA, "createCA", false, "Should the Certificate Authority be created if the crt and key files can't be loaded?")
   flag.StringVar(&configFileName, "config", configFileNameDefault, configFileNameUsage)
   flag.StringVar(&configFileName, "c", configFileNameDefault, configFileNameUsage)
   flag.BoolVar(&showConfig, "show", showConfigDefault, showConfigUsage)
@@ -151,5 +97,5 @@ func main() {
     os.Exit(0)
   }
 
-  createCA()
+  loadCA()
 }

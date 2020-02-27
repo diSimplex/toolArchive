@@ -42,7 +42,7 @@ default_port: 8080
 # can be a comma separated list of these names.
 #
 nurseries:
-  - host: plato01
+  - host: plato01, plato01a, 10.0.0.1
     port: 8989
     primary: true
   - host: plato02

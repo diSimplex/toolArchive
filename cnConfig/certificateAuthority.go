@@ -43,7 +43,7 @@ var caPrivateKey            *rsa.PrivateKey
 
 func createCertificateAuthorityFiles() {
   fmt.Print("\nCreating a new Certificate Authority\n")
-  caCert := &x509.Certificate {
+  lcaCert := &x509.Certificate {
     SerialNumber: big.NewInt(int64(config.Certificate_Authority.Serial_Number)),
     Subject: pkix.Name {
       Organization:  []string{config.Certificate_Authority.Organization},
@@ -66,10 +66,10 @@ func createCertificateAuthorityFiles() {
     BasicConstraintsValid: true,
   }
 
-  caPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+  lcaPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
   configMayBeFatal("could not generate rsa key for CA", err)
 
-  caBytes, err := x509.CreateCertificate(rand.Reader, caCert, caCert, &caPrivateKey.PublicKey, caPrivateKey)
+  caBytes, err := x509.CreateCertificate(rand.Reader, lcaCert, lcaCert, &lcaPrivateKey.PublicKey, lcaPrivateKey)
   configMayBeFatal("could not create the CA certificate", err)
 
   caSubject := "ConTeXt Nursery " + config.Federation_Name + " Certificate Authority"
@@ -96,10 +96,15 @@ func createCertificateAuthorityFiles() {
       "Subject": caSubject,
       "Date":    caDate,
     },
-    Bytes: x509.MarshalPKCS1PrivateKey(caPrivateKey),
+    Bytes: x509.MarshalPKCS1PrivateKey(lcaPrivateKey),
   })
   err = ioutil.WriteFile(caPrivateKeyFileName, caPrivateKeyPEM.Bytes(), 0644)
   configMayBeFatal("could not write the certificateAuthority.key file", err)
+
+  // since we have made it this far... both the cert and key are OK...
+  // so store the local copies in the global variables...
+  caCert       = lcaCert
+  caPrivateKey = lcaPrivateKey
 }
 
 func loadCA() {

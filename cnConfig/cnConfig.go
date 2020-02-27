@@ -24,11 +24,24 @@ import (
   "github.com/jinzhu/configor"
   "log"
   "os"
+// temp
+//  "time"
+//  "bytes"
+//  "crypto/x509"
+//  "encoding/pem"
+//  "io/ioutil"
 )
 
 //////////////////////////
 // Configuration variables
 //
+
+type Nursery struct {
+  Host    string
+  Port    uint   `default:"0"`
+  Primary bool   `default:"false"`
+}
+
 var config = struct {
 
   Federation_Name string `default:"nurseries"`
@@ -53,18 +66,13 @@ var config = struct {
 
   Default_Port uint `default:"0"`
 
-  Nurseries []struct {
-    Host    string `required`
-    Port    uint   `default:"0"`
-    Primary bool   `default:"false"`
-  }
+  Nurseries []Nursery
 
   Users []string `required`
 }{}
 
 var configFileName string
 var showConfig     bool
-
 
 /////////////////////////////
 // Logging and Error handling
@@ -98,4 +106,8 @@ func main() {
   }
 
   loadCA()
+
+  for i, aNursery := range config.Nurseries {
+    createNurseryCertificate(aNursery, i)
+  }
 }

@@ -2,10 +2,12 @@
 *.pdf
 
 # our binaries
-cnConfig/cnConfig
-cnConfig/ca
-cnConfig/servers
-cnConfig/users
+cnSetup/cnSetup
+cnSetup/ca
+cnSetup/servers
+cnSetup/users
+cnTypeSetter/cnTypeSetter
+cnNursery/cnNursery
 
 # Binaries for programs and plugins
 *.exe

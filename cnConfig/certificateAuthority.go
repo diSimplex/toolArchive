@@ -111,7 +111,7 @@ func loadCA() {
   caCertBytes, err := ioutil.ReadFile(caCertFileName)
   if err != nil {
     if !createCA {
-      configMayBeFatal("could not load the certificate authority's *.crt file", err)
+      configMayBeFatal("could not load the certificate authority's *.crt file; did you want to use the '-createCA' option?", err)
     } else {
       createCertificateAuthorityFiles()
       return

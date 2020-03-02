@@ -36,7 +36,7 @@ import (
 /////////////////////////////
 // Client Server Certificates
 
-func createNurseryCertificate(theNursery Nursery, nurseryNum int) {
+func createNurseryCertificate(theNursery *Nursery, nurseryNum int) {
   if theNursery.Host == "" {
     log.Printf("cnConfig(WARNING): no host names specified for a Nursery, skipping Nursery[%d]\n", nurseryNum)
     return
@@ -70,10 +70,10 @@ func createNurseryCertificate(theNursery Nursery, nurseryNum int) {
   }
 
   nPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
-  configMayBeFatal("could not generate rsa key for ["+hosts[0]+"] Nursery", err)
+  setupMayBeFatal("could not generate rsa key for ["+hosts[0]+"] Nursery", err)
 
   nBytes, err := x509.CreateCertificate(rand.Reader, nCert, caCert, &nPrivateKey.PublicKey, caPrivateKey)
-  configMayBeFatal("could not create the certificate for ["+hosts[0]+"] Nursery", err)
+  setupMayBeFatal("could not create the certificate for ["+hosts[0]+"] Nursery", err)
 
   nSubject := "ConTeXt Nursery " + config.Federation_Name + " Server Certificate for ["+hosts[0]+"] Nursery"
   nDate    := time.Now().String()
@@ -90,9 +90,11 @@ func createNurseryCertificate(theNursery Nursery, nurseryNum int) {
     },
     Bytes: nBytes,
   })
-  nCertificateFileName := nDir+"/"+hosts[0]+".crt"
-  err = ioutil.WriteFile(nCertificateFileName, nPEM.Bytes(), 0644)
-  configMayBeFatal("could not write the ["+nCertificateFileName+"] file", err)
+  if theNursery.Cert_Path == "" {
+    theNursery.Cert_Path = nDir+"/"+hosts[0]+".crt"
+  }
+  err = ioutil.WriteFile(theNursery.Cert_Path, nPEM.Bytes(), 0644)
+  setupMayBeFatal("could not write the ["+theNursery.Cert_Path+"] file", err)
 
   nPrivateKeyPEM := new(bytes.Buffer)
   pem.Encode(nPrivateKeyPEM, &pem.Block {
@@ -103,7 +105,9 @@ func createNurseryCertificate(theNursery Nursery, nurseryNum int) {
     },
     Bytes: x509.MarshalPKCS1PrivateKey(nPrivateKey),
   })
-  nPrivateKeyFileName := nDir+"/"+hosts[0]+".key"
-  err = ioutil.WriteFile(nPrivateKeyFileName, nPrivateKeyPEM.Bytes(), 0644)
-  configMayBeFatal("could not write the ["+nPrivateKeyFileName+"] file", err)
+  if theNursery.Key_Path == "" {
+    theNursery.Key_Path = nDir+"/"+hosts[0]+".key"
+  }
+  err = ioutil.WriteFile(theNursery.Key_Path, nPrivateKeyPEM.Bytes(), 0644)
+  setupMayBeFatal("could not write the ["+theNursery.Key_Path+"] file", err)
 }

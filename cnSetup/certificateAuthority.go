@@ -67,10 +67,10 @@ func createCertificateAuthorityFiles() {
   }
 
   lcaPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
-  configMayBeFatal("could not generate rsa key for CA", err)
+  setupMayBeFatal("could not generate rsa key for CA", err)
 
   caBytes, err := x509.CreateCertificate(rand.Reader, lcaCert, lcaCert, &lcaPrivateKey.PublicKey, lcaPrivateKey)
-  configMayBeFatal("could not create the CA certificate", err)
+  setupMayBeFatal("could not create the CA certificate", err)
 
   caSubject := "ConTeXt Nursery " + config.Federation_Name + " Certificate Authority"
   caDate    := time.Now().String()
@@ -87,7 +87,7 @@ func createCertificateAuthorityFiles() {
     Bytes: caBytes,
   })
   err = ioutil.WriteFile(caCertFileName, caPEM.Bytes(), 0644)
-  configMayBeFatal("could not write the certificateAuthority.crt file", err)
+  setupMayBeFatal("could not write the certificateAuthority.crt file", err)
 
   caPrivateKeyPEM := new(bytes.Buffer)
   pem.Encode(caPrivateKeyPEM, &pem.Block {
@@ -99,7 +99,7 @@ func createCertificateAuthorityFiles() {
     Bytes: x509.MarshalPKCS1PrivateKey(lcaPrivateKey),
   })
   err = ioutil.WriteFile(caPrivateKeyFileName, caPrivateKeyPEM.Bytes(), 0644)
-  configMayBeFatal("could not write the certificateAuthority.key file", err)
+  setupMayBeFatal("could not write the certificateAuthority.key file", err)
 
   // since we have made it this far... both the cert and key are OK...
   // so store the local copies in the global variables...
@@ -111,7 +111,7 @@ func loadCA() {
   caCertBytes, err := ioutil.ReadFile(caCertFileName)
   if err != nil {
     if !createCA {
-      configMayBeFatal("could not load the certificate authority's *.crt file; did you want to use the '-createCA' option?", err)
+      setupMayBeFatal("could not load the certificate authority's *.crt file; did you want to use the '-createCA' option?", err)
     } else {
       createCertificateAuthorityFiles()
       return
@@ -121,7 +121,7 @@ func loadCA() {
   caCertPEM, _ /*restCaCertBytes*/ := pem.Decode(caCertBytes)
   if caCertPEM == nil || caCertPEM.Type != "CERTIFICATE" {
     if !createCA {
-      configMayBeFatal("could not locate the certificate authority's CERTIFICATE block", err)
+      setupMayBeFatal("could not locate the certificate authority's CERTIFICATE block", err)
     } else {
       createCertificateAuthorityFiles()
       return
@@ -131,7 +131,7 @@ func loadCA() {
   lcaCert, err := x509.ParseCertificate(caCertPEM.Bytes)
   if err != nil {
     if !createCA {
-      configMayBeFatal("could not parse the certificate authority's certificate", err)
+      setupMayBeFatal("could not parse the certificate authority's certificate", err)
     } else {
       createCertificateAuthorityFiles()
       return
@@ -141,7 +141,7 @@ func loadCA() {
   caKeyBytes,  err  := ioutil.ReadFile(caPrivateKeyFileName)
   if err != nil {
     if !createCA {
-      configMayBeFatal("could not load the certificate authority's *.key file", err)
+      setupMayBeFatal("could not load the certificate authority's *.key file", err)
     } else {
       createCertificateAuthorityFiles()
       return
@@ -151,7 +151,7 @@ func loadCA() {
   caKeyPEM, _ /*restCaKeyBytes*/ := pem.Decode(caKeyBytes)
   if caKeyPEM == nil || caKeyPEM.Type != "RSA PRIVATE KEY" {
     if !createCA {
-      configMayBeFatal("could not locate the certificate authority's RSA PRIVATE KEY block", err)
+      setupMayBeFatal("could not locate the certificate authority's RSA PRIVATE KEY block", err)
     } else {
       createCertificateAuthorityFiles()
       return
@@ -161,7 +161,7 @@ func loadCA() {
   lcaPrivateKey, err := x509.ParsePKCS1PrivateKey(caKeyPEM.Bytes)
   if err != nil {
     if !createCA {
-      configMayBeFatal("could not parse the certificate authority's private key", err)
+      setupMayBeFatal("could not parse the certificate authority's private key", err)
     } else {
       createCertificateAuthorityFiles()
       return

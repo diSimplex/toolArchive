@@ -24,6 +24,7 @@ import (
   "github.com/jinzhu/configor"
   "log"
   "os"
+//  "strings"
 // temp
 //  "time"
 //  "bytes"
@@ -37,9 +38,15 @@ import (
 //
 
 type Nursery struct {
-  Host    string
-  Port    uint   `default:"0"`
-  Primary bool   `default:"false"`
+  Name        string
+  Host        string
+  Hosts       []string
+  Port        uint
+  Html_Dir    string
+  Cert_Path   string
+  Key_Path    string
+  Is_Primary  bool
+  Primary_Url string
 }
 
 var config = struct {
@@ -64,7 +71,7 @@ var config = struct {
     }
   }
 
-  Default_Port uint `default:"0"`
+  Nursery_Defaults Nursery
 
   Nurseries []Nursery
 
@@ -77,13 +84,26 @@ var showConfig     bool
 /////////////////////////////
 // Logging and Error handling
 //
-func configMayBeFatal(logMessage string, err error) {
+func setupMayBeFatal(logMessage string, err error) {
   if err != nil {
     log.Fatalf("cnConfig(FATAL): %s ERROR: %s\n", logMessage, err)
   }
 }
 
 func main() {
+var (
+    nurseryDefaults = Nursery{
+      "",              // Name
+      "",              // Host
+      []string{},      // Hosts
+      8989,            // Port
+      "/var/www/html", // Html_Dir
+      "",              // Key_Path
+      "",              // Cert_Path
+      false,           // Is_Primary
+      "",              // Primary_Url
+    }
+  )
   const (
     configFileNameDefault =  "nurseries.yaml"
     configFileNameUsage   =  "The configuration file to load"
@@ -107,10 +127,27 @@ func main() {
 
   loadCA()
 
+
+  // locate the primary Nursery
+  normalizeNurseryConfig(&config.Nursery_Defaults, nurseryDefaults)
+  primaryNursery := &config.Nurseries[0]
+  for i, _ := range config.Nurseries {
+    if config.Nurseries[i].Is_Primary {
+      if ! primaryNursery.Is_Primary {
+         primaryNursery = &config.Nurseries[i]
+      }
+    }
+    normalizeNurseryConfig(&config.Nurseries[i], config.Nursery_Defaults)
+  }
+  primaryNurseryUrl := computePrimaryNurseryUrl(primaryNursery)
+
+  // now create each Nursery's certificates as well as configuration
   for i, aNursery := range config.Nurseries {
-    createNurseryCertificate(aNursery, i)
+    createNurseryCertificate(&aNursery, i)
+    writeNurseryConfiguration(&aNursery, primaryNurseryUrl)
   }
 
+  // now create each User's certificates
   for i, aUser := range config.Users {
     createUserCertificate(aUser, i)
   }

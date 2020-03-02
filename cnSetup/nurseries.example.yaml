@@ -25,10 +25,12 @@ certificate_authority:
 
 # We now specify which machines will run a nursery
 
-# We can start by specifying a default port for the nursery's interfaces.
-# This is the port we will use if you do not specify a port for a given 
+# We can start by specifying the defaults for a Nursery. These are the 
+# defaults which will be used if a given value is not defined for a given 
 # machine in the list of nurseries below
-default_port: 8080
+nursery_defaults:
+  port:      8080
+  html_dir: /html
 
 # Now we specify the nurseries host names as well as any non-standard 
 # ports....
@@ -44,7 +46,7 @@ default_port: 8080
 nurseries:
   - host: plato01, plato01a, 10.0.0.1
     port: 8989
-    primary: true
+    is_primary: true
   - host: plato02
 
 # Now we provide a list of the individual user's email addresses.

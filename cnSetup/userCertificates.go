@@ -64,10 +64,10 @@ func createUserCertificate(theUser string, userNum int) {
   }
 
   uPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
-  configMayBeFatal("could not generate rsa key for user ["+theUser+"]", err)
+  setupMayBeFatal("could not generate rsa key for user ["+theUser+"]", err)
 
   uBytes, err := x509.CreateCertificate(rand.Reader, uCert, caCert, &uPrivateKey.PublicKey, caPrivateKey)
-  configMayBeFatal("could not create the certificate for user ["+theUser+"]", err)
+  setupMayBeFatal("could not create the certificate for user ["+theUser+"]", err)
 
   uSubject := "ConTeXt Nursery " + config.Federation_Name + " User Certificate for user ["+theUser+"]"
   uDate    := time.Now().String()
@@ -86,7 +86,7 @@ func createUserCertificate(theUser string, userNum int) {
   })
   uCertificateFileName := uDir+"/"+theUser+".crt"
   err = ioutil.WriteFile(uCertificateFileName, uPEM.Bytes(), 0644)
-  configMayBeFatal("could not write the ["+uCertificateFileName+"] file", err)
+  setupMayBeFatal("could not write the ["+uCertificateFileName+"] file", err)
 
   uPrivateKeyPEM := new(bytes.Buffer)
   pem.Encode(uPrivateKeyPEM, &pem.Block {
@@ -99,5 +99,5 @@ func createUserCertificate(theUser string, userNum int) {
   })
   uPrivateKeyFileName := uDir+"/"+theUser+".key"
   err = ioutil.WriteFile(uPrivateKeyFileName, uPrivateKeyPEM.Bytes(), 0644)
-  configMayBeFatal("could not write the ["+uPrivateKeyFileName+"] file", err)
+  setupMayBeFatal("could not write the ["+uPrivateKeyFileName+"] file", err)
 }

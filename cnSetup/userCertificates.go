@@ -29,6 +29,8 @@ import (
   "math/big"
   "log"
   "os"
+  "software.sslmate.com/src/go-pkcs12"
+  "strings"
   "time"
 )
 
@@ -40,7 +42,7 @@ func createUserCertificate(theUser string, userNum int) {
     log.Printf("cnConfig(WARNING): no user name specified for a user, skipping user[%d]\n", userNum)
     return
   }
-  fmt.Printf("\nCreating configuration for the user [%s]\n", theUser)
+  fmt.Printf("\n\nCreating configuration for the user [%s]\n", theUser)
 
   uCert := &x509.Certificate {
     SerialNumber: big.NewInt(int64(config.Certificate_Authority.Serial_Number)),
@@ -69,35 +71,67 @@ func createUserCertificate(theUser string, userNum int) {
   uBytes, err := x509.CreateCertificate(rand.Reader, uCert, caCert, &uPrivateKey.PublicKey, caPrivateKey)
   setupMayBeFatal("could not create the certificate for user ["+theUser+"]", err)
 
-  uSubject := "ConTeXt Nursery " + config.Federation_Name + " User Certificate for user ["+theUser+"]"
-  uDate    := time.Now().String()
+  uSubject := "Subject: ConTeXt Nursery " + config.Federation_Name + " User Certificate for user ["+theUser+"]"
+  uDate    := "Date:    "+time.Now().String()+"\n"
 
   uDir := "users/"+theUser
   os.MkdirAll(uDir, 0755)
+  uPath := uDir+"/"+ strings.ReplaceAll(theUser, ".", "-")
+
+  caPEM := new(bytes.Buffer)
+  caPEM.WriteString("\n")
+  caPEM.WriteString(uSubject + " (CA)\n")
+  caPEM.WriteString(uDate)
+  pem.Encode(caPEM, &pem.Block {
+    Type:  "CERTIFICATE",
+    Bytes: caCert.Raw,
+  })
+  uCaCertificateFileName := uPath+"-ca-crt.pem"
+  err = ioutil.WriteFile(uCaCertificateFileName, caPEM.Bytes(), 0644)
+  setupMayBeFatal("could not write the ["+uCaCertificateFileName+"] file", err)
 
   uPEM := new(bytes.Buffer)
+  uPEM.WriteString("\n")
+  uPEM.WriteString(uSubject + "\n")
+  uPEM.WriteString(uDate)
   pem.Encode(uPEM, &pem.Block {
     Type:  "CERTIFICATE",
-    Headers: map[string]string {
-      "Subject": uSubject,
-      "Date":    uDate,
-    },
     Bytes: uBytes,
   })
-  uCertificateFileName := uDir+"/"+theUser+".crt"
+  //
+  // add the CA certificate to the chain..
+  //
+  uPEM.WriteString("\n")
+  uPEM.WriteString(uSubject + " (CA)\n")
+  uPEM.WriteString(uDate)
+  pem.Encode(uPEM, &pem.Block {
+    Type:  "CERTIFICATE",
+    Bytes: caCert.Raw,
+  })
+  uCertificateFileName := uPath+"-crt.pem"
   err = ioutil.WriteFile(uCertificateFileName, uPEM.Bytes(), 0644)
   setupMayBeFatal("could not write the ["+uCertificateFileName+"] file", err)
 
   uPrivateKeyPEM := new(bytes.Buffer)
+  uPrivateKeyPEM.WriteString("\n")
+  uPrivateKeyPEM.WriteString(uSubject + "\n")
+  uPrivateKeyPEM.WriteString(uDate)
   pem.Encode(uPrivateKeyPEM, &pem.Block {
     Type: "RSA PRIVATE KEY",
-    Headers: map[string]string {
-      "Subject": uSubject,
-      "Date":    uDate,
-    },
     Bytes: x509.MarshalPKCS1PrivateKey(uPrivateKey),
   })
-  uPrivateKeyFileName := uDir+"/"+theUser+".key"
-  err = ioutil.WriteFile(uPrivateKeyFileName, uPrivateKeyPEM.Bytes(), 0644)
+  uPrivateKeyFileName := uPath+"-key.pem"
+  err = ioutil.WriteFile(uPrivateKeyFileName, uPrivateKeyPEM.Bytes(), 0600)
   setupMayBeFatal("could not write the ["+uPrivateKeyFileName+"] file", err)
+
+
+//  uCert, err := x509.ParseCertificate(uBytes)
+  setupMayBeFatal("could not parse x509 certificate", err)
+
+  pfxBytes, err := pkcs12.Encode(rand.Reader, uPrivateKey, uCert, []*x509.Certificate{caCert}, "test")
+  setupMayBeFatal("Could not create the pkcs#12 certificate bundle", err)
+
+  uPKCS12FileName := uPath+".p12"
+  err = ioutil.WriteFile(uPKCS12FileName, pfxBytes, 0600)
+  setupMayBeFatal("Could not write the pkcs#12 certifcate to a file", err)
 }

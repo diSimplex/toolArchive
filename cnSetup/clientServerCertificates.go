@@ -26,26 +26,27 @@ import (
   "encoding/pem"
   "fmt"
   "io/ioutil"
-  "math/big"
   "log"
+  "math/big"
   "os"
-  "strings"
+  "path/filepath"
+//  "strings"
   "time"
 )
 
 /////////////////////////////
 // Client Server Certificates
 
-func createNurseryCertificate(theNursery *Nursery, nurseryNum int) {
-  if theNursery.Host == "" {
+func createNurseryCertificate(nursery *Nursery, nurseryNum int) {
+  if nursery.Host == "" {
     log.Printf("cnConfig(WARNING): no host names specified for a Nursery, skipping Nursery[%d]\n", nurseryNum)
     return
   }
-  hosts := strings.Split(theNursery.Host, ",")
-  for i, aString := range hosts {
-    hosts[i] = strings.TrimSpace(aString)
-  }
-  fmt.Printf("\nCreating configuration for the [%s] Nursery\n", hosts[0])
+//  hosts := strings.Split(nursery.Host, ",")
+//  for i, aString := range hosts {
+//    hosts[i] = strings.TrimSpace(aString)
+//  }
+  fmt.Printf("\n\nCreating configuration for the [%s] Nursery\n", nursery.Name)
 
   nCert := &x509.Certificate {
     SerialNumber: big.NewInt(int64(config.Certificate_Authority.Serial_Number)),
@@ -70,44 +71,73 @@ func createNurseryCertificate(theNursery *Nursery, nurseryNum int) {
   }
 
   nPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
-  setupMayBeFatal("could not generate rsa key for ["+hosts[0]+"] Nursery", err)
+  setupMayBeFatal("could not generate rsa key for ["+nursery.Name+"] Nursery", err)
 
   nBytes, err := x509.CreateCertificate(rand.Reader, nCert, caCert, &nPrivateKey.PublicKey, caPrivateKey)
-  setupMayBeFatal("could not create the certificate for ["+hosts[0]+"] Nursery", err)
+  setupMayBeFatal("could not create the certificate for ["+nursery.Name+"] Nursery", err)
 
-  nSubject := "ConTeXt Nursery " + config.Federation_Name + " Server Certificate for ["+hosts[0]+"] Nursery"
-  nDate    := time.Now().String()
+  nSubject := "Subject: ConTeXt Nursery " + config.Federation_Name + " Server Certificate for ["+nursery.Name+"] Nursery"
+  nDate    := "Date:    "+time.Now().String()+"\n"
 
-  nDir := "servers/"+hosts[0]
+  nDir := "servers/"+nursery.Name
   os.MkdirAll(nDir, 0755)
 
+  caPEM := new(bytes.Buffer)
+  caPEM.WriteString("\n")
+  caPEM.WriteString(nSubject + " (CA)\n")
+  caPEM.WriteString(nDate)
+  pem.Encode(caPEM, &pem.Block {
+    Type:  "CERTIFICATE",
+    Bytes: caCert.Raw,
+  })
+  if nursery.Ca_Cert_Path == "" {
+    nursery.Ca_Cert_Path = nDir+"/"+nursery.Name+"-ca-crt.pem"
+  }
+  os.MkdirAll(filepath.Dir(nursery.Ca_Cert_Path), 0755)
+  err = ioutil.WriteFile(nursery.Ca_Cert_Path, caPEM.Bytes(), 0644)
+  setupMayBeFatal("could not write the ["+nursery.Ca_Cert_Path+"] file", err)
+
   nPEM := new(bytes.Buffer)
+  nPEM.WriteString("\n")
+  nPEM.WriteString(nSubject + "\n")
+  nPEM.WriteString(nDate)
   pem.Encode(nPEM, &pem.Block {
     Type:  "CERTIFICATE",
-    Headers: map[string]string {
-      "Subject": nSubject,
-      "Date":    nDate,
-    },
     Bytes: nBytes,
   })
-  if theNursery.Cert_Path == "" {
-    theNursery.Cert_Path = nDir+"/"+hosts[0]+".crt"
+  //
+  // add the CA certificate to the chain..
+  //
+  nPEM.WriteString("\n")
+  nPEM.WriteString(nSubject + " (CA)\n")
+  nPEM.WriteString(nDate)
+  pem.Encode(nPEM, &pem.Block {
+    Type:  "CERTIFICATE",
+    Bytes: caCert.Raw,
+  })
+  if nursery.Cert_Path == "" {
+    nursery.Cert_Path = nDir+"/"+nursery.Name+"-crt.pem"
   }
-  err = ioutil.WriteFile(theNursery.Cert_Path, nPEM.Bytes(), 0644)
-  setupMayBeFatal("could not write the ["+theNursery.Cert_Path+"] file", err)
+  os.MkdirAll(filepath.Dir(nursery.Cert_Path), 0755)
+  err = ioutil.WriteFile(nursery.Cert_Path, nPEM.Bytes(), 0644)
+  setupMayBeFatal("could not write the ["+nursery.Cert_Path+"] file", err)
 
+  // NOTE this private key is left UN-ENCRYPTED on the file system!
+  // SO you need to ensure it is not readable by anyone other than the
+  // user who needs to run the cnNursery!
+  //
   nPrivateKeyPEM := new(bytes.Buffer)
+  nPrivateKeyPEM.WriteString("\n")
+  nPrivateKeyPEM.WriteString(nSubject + "\n")
+  nPrivateKeyPEM.WriteString(nDate)
   pem.Encode(nPrivateKeyPEM, &pem.Block {
     Type: "RSA PRIVATE KEY",
-    Headers: map[string]string {
-      "Subject": nSubject,
-      "Date":    nDate,
-    },
     Bytes: x509.MarshalPKCS1PrivateKey(nPrivateKey),
   })
-  if theNursery.Key_Path == "" {
-    theNursery.Key_Path = nDir+"/"+hosts[0]+".key"
+  if nursery.Key_Path == "" {
+    nursery.Key_Path = nDir+"/"+nursery.Name+"-key.pem"
   }
-  err = ioutil.WriteFile(theNursery.Key_Path, nPrivateKeyPEM.Bytes(), 0644)
-  setupMayBeFatal("could not write the ["+theNursery.Key_Path+"] file", err)
+  os.MkdirAll(filepath.Dir(nursery.Key_Path), 0755)
+  err = ioutil.WriteFile(nursery.Key_Path, nPrivateKeyPEM.Bytes(), 0644)
+  setupMayBeFatal("could not write the ["+nursery.Key_Path+"] file", err)
 }

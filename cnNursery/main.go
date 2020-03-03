@@ -31,10 +31,16 @@ import (
 //
 
 var config = struct {
-  Host     string
-  Port     uint
-  HtmlDirs string
-  UrlBase  string
+  Name         string
+  Host         string
+  Interface    string
+  Port         uint
+  Html_Dir     string
+  Base_Url     string
+  Primary_Url  string
+  Ca_Cert_Path string
+  Cert_Path    string
+  Key_Path     string
 }{}
 
 var configFileName string

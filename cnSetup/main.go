@@ -38,15 +38,19 @@ import (
 //
 
 type Nursery struct {
-  Name        string
-  Host        string
-  Hosts       []string
-  Port        uint
-  Html_Dir    string
-  Cert_Path   string
-  Key_Path    string
-  Is_Primary  bool
-  Primary_Url string
+  Name         string
+  Host         string
+  Hosts        []string
+  Interface    string
+  Port         uint
+  Html_Dir     string
+  Ca_Cert_Path string
+  Cert_Path    string
+  Key_Path     string
+  Is_Primary   bool
+  Base_Url     string
+  Primary_Url  string
+  Config_Path  string
 }
 
 var config = struct {
@@ -63,6 +67,7 @@ var config = struct {
     Locality       string
     Street_Address string
     Postal_Code    string
+    Common_Name    string
 
     Valid_For struct {
       Years  uint `default:"10"`
@@ -93,15 +98,19 @@ func setupMayBeFatal(logMessage string, err error) {
 func main() {
 var (
     nurseryDefaults = Nursery{
-      "",              // Name
-      "",              // Host
-      []string{},      // Hosts
-      8989,            // Port
-      "/var/www/html", // Html_Dir
-      "",              // Key_Path
-      "",              // Cert_Path
-      false,           // Is_Primary
-      "",              // Primary_Url
+      "",                       // Name
+      "",                       // Host
+      []string{},               // Hosts
+      "0.0.0.0",                // Interface
+      8989,                     // Port
+      "/var/www/html",          // Html_Dir
+      "",                       // Ca_Cert_Path
+      "",                       // Cert_Path
+      "",                       // Key_Path
+      false,                    // Is_Primary
+      "https://localhost:8989", // Base_Url
+      "",                       // Primary_Url
+      "",                       // Config_Path
     }
   )
   const (

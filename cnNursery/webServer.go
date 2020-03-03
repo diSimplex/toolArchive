@@ -15,18 +15,22 @@
 package main
 
 import (
+  "crypto/tls"
+  "crypto/x509"
+  "io/ioutil"
   "log"
+//  "net"
   "net/http"
   "strconv"
 )
 
-func WebserverMaybeFatal(logMessage string, err error) {
+func WebserverMayBeFatal(logMessage string, err error) {
   if err != nil {
     log.Fatalf("Webserver(FATAL): %s ERROR: %s", logMessage, err)
   }
 }
 
-func WebserverMaybeError(logMessage string, err error) {
+func WebserverMayBeError(logMessage string, err error) {
   if err != nil {
     log.Printf("Webserver(error): %s error: %s",logMessage, err)
   }
@@ -47,8 +51,24 @@ func runWebServer() {
     w.Write([]byte("Hello from the webServer!"))
   })
 
-  config.Port = uint(8989)
-  hostPort := config.Host + ":" + strconv.Itoa(int(config.Port))
-  WebserverLogf("listening on [%s]\n", hostPort)
-  http.ListenAndServe(hostPort, nil)
+  cert, err := tls.LoadX509KeyPair(config.Cert_Path, config.Key_Path)
+  WebserverMayBeFatal("Could not load cert/key pair", err)
+
+  caCert, err := ioutil.ReadFile(config.Ca_Cert_Path)
+  WebserverMayBeFatal("Could not load the CA certificate", err)
+
+  caCertPool := x509.NewCertPool()
+  caCertPool.AppendCertsFromPEM(caCert)
+
+  // Setup HTTPS client
+  tlsConfig := &tls.Config{
+    Certificates: []tls.Certificate{cert},
+    RootCAs:      caCertPool,
+  }
+
+  hostPort := config.Interface + ":" + strconv.Itoa(int(config.Port))
+  WebserverLogf("listening at [%s]\n", hostPort)
+  listener, err := tls.Listen("tcp",  hostPort, tlsConfig)
+  server := &http.Server{TLSConfig: tlsConfig }
+  server.Serve(listener)
 }

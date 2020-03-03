@@ -36,8 +36,8 @@ import (
 //
 var createCA                 bool
 var caDir                 = "ca"
-var caCertFileName        = "ca/certificateAuthority.crt"
-var caPrivateKeyFileName  = "ca/certificateAuthority.key"
+var caCertFileName        = "ca/certificateAuthority-crt.pem"
+var caPrivateKeyFileName  = "ca/certificateAuthority-key.pem"
 var caCert                  *x509.Certificate
 var caPrivateKey            *rsa.PrivateKey
 
@@ -52,6 +52,7 @@ func createCertificateAuthorityFiles() {
       Locality:      []string{config.Certificate_Authority.Locality},
       StreetAddress: []string{config.Certificate_Authority.Street_Address},
       PostalCode:    []string{config.Certificate_Authority.Postal_Code},
+      CommonName:             config.Certificate_Authority.Common_Name,
     },
     NotBefore: time.Now(),
     NotAfter:  time.Now().AddDate(int(config.Certificate_Authority.Valid_For.Years),
@@ -72,33 +73,41 @@ func createCertificateAuthorityFiles() {
   caBytes, err := x509.CreateCertificate(rand.Reader, lcaCert, lcaCert, &lcaPrivateKey.PublicKey, lcaPrivateKey)
   setupMayBeFatal("could not create the CA certificate", err)
 
-  caSubject := "ConTeXt Nursery " + config.Federation_Name + " Certificate Authority"
-  caDate    := time.Now().String()
+  caSubject := "Subject: ConTeXt Nursery " + config.Federation_Name + " Certificate Authority\n"
+  caDate    := "Date:    "+time.Now().String()+"\n"
 
+  if config.Federation_Name != "" {
+    caDir                = caDir + "/" + config.Federation_Name
+    caCertFileName       = caDir + "/" + config.Federation_Name + "-ca-crt.pem"
+    caPrivateKeyFileName = caDir + "/" + config.Federation_Name + "-ca-key.pem"
+  }
   os.MkdirAll(caDir, 0755)
 
   caPEM := new(bytes.Buffer)
+  caPEM.WriteString("\n")
+  caPEM.WriteString(caSubject)
+  caPEM.WriteString(caDate)
   pem.Encode(caPEM, &pem.Block {
     Type:  "CERTIFICATE",
-    Headers: map[string]string {
-      "Subject": caSubject,
-      "Date":    caDate,
-    },
     Bytes: caBytes,
   })
+  lcaCert.Raw = caBytes
   err = ioutil.WriteFile(caCertFileName, caPEM.Bytes(), 0644)
   setupMayBeFatal("could not write the certificateAuthority.crt file", err)
 
+  // NOTE this private key is left UN-ENCRYPTED on the file system!
+  // SO you need to ensure it is not readable by anyone other than the
+  // user who needs to run the cnSetup!
+  //
   caPrivateKeyPEM := new(bytes.Buffer)
+  caPrivateKeyPEM.WriteString("\n")
+  caPrivateKeyPEM.WriteString(caSubject)
+  caPrivateKeyPEM.WriteString(caDate)
   pem.Encode(caPrivateKeyPEM, &pem.Block {
     Type: "RSA PRIVATE KEY",
-    Headers: map[string]string {
-      "Subject": caSubject,
-      "Date":    caDate,
-    },
     Bytes: x509.MarshalPKCS1PrivateKey(lcaPrivateKey),
   })
-  err = ioutil.WriteFile(caPrivateKeyFileName, caPrivateKeyPEM.Bytes(), 0644)
+  err = ioutil.WriteFile(caPrivateKeyFileName, caPrivateKeyPEM.Bytes(), 0600)
   setupMayBeFatal("could not write the certificateAuthority.key file", err)
 
   // since we have made it this far... both the cert and key are OK...
@@ -108,6 +117,12 @@ func createCertificateAuthorityFiles() {
 }
 
 func loadCA() {
+  if config.Federation_Name != "" {
+    caDir                = caDir + "/" + config.Federation_Name
+    caCertFileName       = caDir + "/" + config.Federation_Name + "-ca-crt.pem"
+    caPrivateKeyFileName = caDir + "/" + config.Federation_Name + "-ca-key.pem"
+  }
+
   caCertBytes, err := ioutil.ReadFile(caCertFileName)
   if err != nil {
     if !createCA {

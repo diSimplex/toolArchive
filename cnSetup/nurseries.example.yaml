@@ -18,6 +18,7 @@ certificate_authority:
   locality: On Beyond Zebra
   street_address: 42 Is The Answer!
   postal_code: What Is The Question?
+  common_name: playGround CA
   valid_for: 
     years: 10
     months: 0 

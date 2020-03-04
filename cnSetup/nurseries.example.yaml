@@ -11,7 +11,11 @@ key_size: 8192
 
 # We must specify details for the Certificate Authority
 certificate_authority:
-  serial_number: 2020
+#  IF you do not specify a serial_number, THEN the current unix time int 
+#  will be used instead. IF you specify your own serial_number THEN you 
+#  must make sure you change it EVERY TIME you rerun the cnSetup tool!
+#  
+#  serial_number: 2020
   organization: Neo-Platonist Mathematicians UnLimited
   country: Platonia
   province: Where The Wild Things Are

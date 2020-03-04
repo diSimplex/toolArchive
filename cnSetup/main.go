@@ -24,9 +24,9 @@ import (
   "github.com/jinzhu/configor"
   "log"
   "os"
+  "time"
 //  "strings"
 // temp
-//  "time"
 //  "bytes"
 //  "crypto/x509"
 //  "encoding/pem"
@@ -60,7 +60,7 @@ var config = struct {
   Key_Size uint `default:"4096"`
 
   Certificate_Authority struct {
-    Serial_Number  uint    `default:"1"`
+    Serial_Number  uint
     Organization   string
     Country        string
     Province       string
@@ -83,6 +83,12 @@ var config = struct {
   Users []string
 }{}
 
+type UserPassword struct{
+  User_Name string
+  Password  string
+}
+var userPasswords []UserPassword
+
 var configFileName string
 var showConfig     bool
 
@@ -91,7 +97,7 @@ var showConfig     bool
 //
 func setupMayBeFatal(logMessage string, err error) {
   if err != nil {
-    log.Fatalf("cnConfig(FATAL): %s ERROR: %s\n", logMessage, err)
+    log.Fatalf("cnSetup(FATAL): %s ERROR: %s\n", logMessage, err)
   }
 }
 
@@ -128,6 +134,12 @@ var (
 
   configor.Load(&config, configFileName)
 
+  // make sure the Serial_Number is constantly increasing...
+  //
+  if config.Certificate_Authority.Serial_Number == 0 {
+    config.Certificate_Authority.Serial_Number = uint(time.Now().Unix())
+  }
+
   if showConfig {
     configStr, _ := json.MarshalIndent(config, "", "  ")
     fmt.Print(string(configStr))
@@ -160,4 +172,15 @@ var (
   for i, aUser := range config.Users {
     createUserCertificate(aUser, i)
   }
+
+  // now write out the file of user passwords
+  passwordFile, err := os.Create("users/passwords")
+  setupMayBeFatal("Could not open [users/passwords] file", err)
+  for _, aUserPassword := range userPasswords {
+    passwordFile.WriteString(aUserPassword.User_Name+"\t"+aUserPassword.Password+"\n")
+  }
+  passwordFile.Close()
+  os.Chmod("users/passwords", 0600)
+  fmt.Printf("\nThe automatically generated passwords for each user's PKCS#12 file\n")
+  fmt.Printf("  can be found in the file [users/passwords]\n\n")
 }

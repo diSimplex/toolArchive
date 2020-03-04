@@ -43,6 +43,7 @@ var caPrivateKey            *rsa.PrivateKey
 
 func createCertificateAuthorityFiles() {
   fmt.Print("\nCreating a new Certificate Authority\n")
+
   lcaCert := &x509.Certificate {
     SerialNumber: big.NewInt(int64(config.Certificate_Authority.Serial_Number)),
     Subject: pkix.Name {
@@ -76,11 +77,6 @@ func createCertificateAuthorityFiles() {
   caSubject := "Subject: ConTeXt Nursery " + config.Federation_Name + " Certificate Authority\n"
   caDate    := "Date:    "+time.Now().String()+"\n"
 
-  if config.Federation_Name != "" {
-    caDir                = caDir + "/" + config.Federation_Name
-    caCertFileName       = caDir + "/" + config.Federation_Name + "-ca-crt.pem"
-    caPrivateKeyFileName = caDir + "/" + config.Federation_Name + "-ca-key.pem"
-  }
   os.MkdirAll(caDir, 0755)
 
   caPEM := new(bytes.Buffer)

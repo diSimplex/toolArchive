@@ -1,3 +1,14 @@
+*.swp
+*.pdf
+
+# our binaries
+cnSetup/cnSetup
+cnSetup/ca
+cnSetup/servers
+cnSetup/users
+cnTypeSetter/cnTypeSetter
+cnNursery/cnNursery
+
 # Binaries for programs and plugins
 *.exe
 *.exe~

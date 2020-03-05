@@ -23,7 +23,9 @@ import (
   "fmt"
   "github.com/jinzhu/configor"
   "log"
+  "math/rand"
   "os"
+  "time"
 )
 
 //////////////////////////
@@ -75,6 +77,11 @@ func main() {
     fmt.Printf("%s\n", string(configStr))
     os.Exit(0)
   }
+
+  // seed the math/rand random number generator with a "random" seed
+  rand.Seed(time.Now().Unix())
+
+  go sendPeriodicHeartBeats()
 
   runWebServer()
 

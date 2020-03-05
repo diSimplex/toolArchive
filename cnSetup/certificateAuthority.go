@@ -45,7 +45,13 @@ func createCertificateAuthorityFiles() {
   fmt.Print("\nCreating a new Certificate Authority\n")
 
   lcaCert := &x509.Certificate {
-    SerialNumber: big.NewInt(int64(config.Certificate_Authority.Serial_Number)),
+    // we need to use DIFFERENT serial numbers for each of CA (1<<32), 
+    //  C/S (1<<33) and User (1<<34)
+    SerialNumber: big.NewInt(
+      int64(1<<32) |
+      int64(config.Certificate_Authority.Serial_Number),
+    ),
+    SignatureAlgorithm: x509.SHA512WithRSA,
     Subject: pkix.Name {
       Organization:  []string{config.Certificate_Authority.Organization},
       Country:       []string{config.Certificate_Authority.Country},
@@ -53,8 +59,9 @@ func createCertificateAuthorityFiles() {
       Locality:      []string{config.Certificate_Authority.Locality},
       StreetAddress: []string{config.Certificate_Authority.Street_Address},
       PostalCode:    []string{config.Certificate_Authority.Postal_Code},
-      CommonName:             config.Certificate_Authority.Common_Name,
+      CommonName:    "ConTeXt Nursery "+config.Certificate_Authority.Common_Name,
     },
+    EmailAddresses:  []string{config.Certificate_Authority.Email_Address},
     NotBefore: time.Now(),
     NotAfter:  time.Now().AddDate(int(config.Certificate_Authority.Valid_For.Years),
                                   int(config.Certificate_Authority.Valid_For.Months),
@@ -68,7 +75,7 @@ func createCertificateAuthorityFiles() {
     BasicConstraintsValid: true,
   }
 
-  lcaPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+  lcaPrivateKey, err := rsa.GenerateKey(rand.Reader, int(config.Key_Size))
   setupMayBeFatal("could not generate rsa key for CA", err)
 
   caBytes, err := x509.CreateCertificate(rand.Reader, lcaCert, lcaCert, &lcaPrivateKey.PublicKey, lcaPrivateKey)

@@ -28,6 +28,7 @@ import (
   "io/ioutil"
   "log"
   "math/big"
+  "net"
   "os"
   "path/filepath"
 //  "strings"
@@ -42,14 +43,16 @@ func createNurseryCertificate(nursery *Nursery, nurseryNum int) {
     log.Printf("cnConfig(WARNING): no host names specified for a Nursery, skipping Nursery[%d]\n", nurseryNum)
     return
   }
-//  hosts := strings.Split(nursery.Host, ",")
-//  for i, aString := range hosts {
-//    hosts[i] = strings.TrimSpace(aString)
-//  }
+
   fmt.Printf("\n\nCreating configuration for the [%s] Nursery\n", nursery.Name)
 
   nCert := &x509.Certificate {
-    SerialNumber: big.NewInt(int64(config.Certificate_Authority.Serial_Number)),
+    // we need to use DIFFERENT serial numbers for each of CA (1<<32), 
+    //  C/S (1<<33) and User (1<<34)
+    SerialNumber: big.NewInt(
+      int64(1<<33) |
+      int64(config.Certificate_Authority.Serial_Number),
+    ),    SignatureAlgorithm: x509.SHA512WithRSA,
     Subject: pkix.Name {
       Organization:  []string{config.Certificate_Authority.Organization},
       Country:       []string{config.Certificate_Authority.Country},
@@ -57,7 +60,9 @@ func createNurseryCertificate(nursery *Nursery, nurseryNum int) {
       Locality:      []string{config.Certificate_Authority.Locality},
       StreetAddress: []string{config.Certificate_Authority.Street_Address},
       PostalCode:    []string{config.Certificate_Authority.Postal_Code},
+      CommonName:    nursery.Name,
     },
+    EmailAddresses:  []string{config.Certificate_Authority.Email_Address},
     NotBefore: time.Now(),
     NotAfter:  time.Now().AddDate(int(config.Certificate_Authority.Valid_For.Years),
                                   int(config.Certificate_Authority.Valid_For.Months),
@@ -67,10 +72,23 @@ func createNurseryCertificate(nursery *Nursery, nurseryNum int) {
       x509.ExtKeyUsageServerAuth,
     },
     SubjectKeyId: []byte{1,2,3,4,6},
-    KeyUsage:    x509.KeyUsageDigitalSignature,
+    KeyUsage:    x509.KeyUsageDigitalSignature |
+      x509.KeyUsageKeyEncipherment |
+      x509.KeyUsageKeyAgreement |
+      x509.KeyUsageDataEncipherment,
   }
 
-  nPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+  // Add the DNSNames and IPAddresses
+  for _, aHost := range nursery.Hosts {
+    possibleIPAddress := net.ParseIP(aHost)
+    if possibleIPAddress != nil {
+      nCert.IPAddresses = append(nCert.IPAddresses, possibleIPAddress)
+    } else {
+      nCert.DNSNames = append(nCert.DNSNames, aHost)
+    }
+  }
+
+  nPrivateKey, err := rsa.GenerateKey(rand.Reader, int(config.Key_Size))
   setupMayBeFatal("could not generate rsa key for ["+nursery.Name+"] Nursery", err)
 
   nBytes, err := x509.CreateCertificate(rand.Reader, nCert, caCert, &nPrivateKey.PublicKey, caPrivateKey)

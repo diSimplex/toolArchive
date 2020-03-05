@@ -62,8 +62,10 @@ func runWebServer() {
 
   // Setup HTTPS client
   tlsConfig := &tls.Config{
+    ClientAuth:     tls.RequireAndVerifyClientCert,
     Certificates: []tls.Certificate{cert},
-    RootCAs:      caCertPool,
+    RootCAs:        caCertPool,
+    ClientCAs:      caCertPool,
   }
 
   hostPort := config.Interface + ":" + strconv.Itoa(int(config.Port))

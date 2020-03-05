@@ -21,3 +21,15 @@
     openssl rsa -inform PEM -in <<private key path>>-key.pem -noout
     if [ $? == 0 ] ; then ; echo "VERIFIED" ; fi
 ```
+
+### Dump a certificate
+
+```
+    openssl x509 -in <<cert path>> -text
+```
+
+### Dump a PKCS#12 file
+
+```
+    openssl pkcs12 -info -in <<pkcs12 path>>
+```

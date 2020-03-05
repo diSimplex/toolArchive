@@ -47,7 +47,12 @@ func createUserCertificate(theUser string, userNum int) {
   fmt.Printf("\n\nCreating configuration for the user [%s]\n", theUser)
 
   uCert := &x509.Certificate {
-    SerialNumber: big.NewInt(int64(config.Certificate_Authority.Serial_Number)),
+    // we need to use DIFFERENT serial numbers for each of CA (1<<32),
+    //  C/S (1<<33) and User (1<<34)
+    SerialNumber: big.NewInt(
+      int64(1<<34) |
+      int64(config.Certificate_Authority.Serial_Number),
+    ),    SignatureAlgorithm: x509.SHA512WithRSA,
     Subject: pkix.Name {
       Organization:  []string{config.Certificate_Authority.Organization},
       Country:       []string{config.Certificate_Authority.Country},
@@ -55,7 +60,9 @@ func createUserCertificate(theUser string, userNum int) {
       Locality:      []string{config.Certificate_Authority.Locality},
       StreetAddress: []string{config.Certificate_Authority.Street_Address},
       PostalCode:    []string{config.Certificate_Authority.Postal_Code},
+      CommonName:    theUser + " ( ConTeXt Nursery " + config.Federation_Name + " )",
     },
+    EmailAddresses:  []string{config.Certificate_Authority.Email_Address},
     NotBefore: time.Now(),
     NotAfter:  time.Now().AddDate(int(config.Certificate_Authority.Valid_For.Years),
                                   int(config.Certificate_Authority.Valid_For.Months),
@@ -64,10 +71,13 @@ func createUserCertificate(theUser string, userNum int) {
       x509.ExtKeyUsageClientAuth,
     },
     SubjectKeyId: []byte{1,2,3,4,6},
-    KeyUsage:    x509.KeyUsageDigitalSignature,
+    KeyUsage:    x509.KeyUsageDigitalSignature |
+      x509.KeyUsageKeyEncipherment |
+      x509.KeyUsageKeyAgreement |
+      x509.KeyUsageDataEncipherment,
   }
 
-  uPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+  uPrivateKey, err := rsa.GenerateKey(rand.Reader, int(config.Key_Size))
   setupMayBeFatal("could not generate rsa key for user ["+theUser+"]", err)
 
   uBytes, err := x509.CreateCertificate(rand.Reader, uCert, caCert, &uPrivateKey.PublicKey, caPrivateKey)

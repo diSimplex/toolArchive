@@ -67,6 +67,7 @@ var config = struct {
     Locality       string
     Street_Address string
     Postal_Code    string
+    Email_Address  string
     Common_Name    string
 
     Valid_For struct {
@@ -138,6 +139,10 @@ var (
   //
   if config.Certificate_Authority.Serial_Number == 0 {
     config.Certificate_Authority.Serial_Number = uint(time.Now().Unix())
+  }
+
+  if config.Federation_Name == "" {
+    config.Federation_Name = "ConTeXt Nurseries"
   }
 
   if showConfig {

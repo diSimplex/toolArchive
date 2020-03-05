@@ -18,6 +18,8 @@
 package main
 
 import (
+  "crypto/tls"
+  "crypto/x509"
   "encoding/json"
   "flag"
   "fmt"
@@ -26,6 +28,7 @@ import (
   "log"
   "net/http"
   "os"
+  "time"
 )
 
 //////////////////////////
@@ -33,10 +36,11 @@ import (
 //
 
 var config = struct {
-  Host     string
-  Port     uint
-  HtmlDirs string
-  UrlBase  string
+  Name         string
+  Primary_Url  string
+  Ca_Cert_Path string
+  Cert_Path    string
+  Key_Path     string
 }{}
 
 var configFileName string
@@ -72,7 +76,36 @@ func main() {
     os.Exit(0)
   }
 
-  resp, err := http.Get("http://localhost:8989/")
+  cert, err := tls.LoadX509KeyPair(config.Cert_Path, config.Key_Path)
+  typeSetterMayBeFatal("Could not load cert/key pair", err)
+
+  caCert, err := ioutil.ReadFile(config.Ca_Cert_Path)
+  typeSetterMayBeFatal("Could not load the CA certificate", err)
+
+  caCertPool := x509.NewCertPool()
+  caCertPool.AppendCertsFromPEM(caCert)
+
+  // Setup HTTPS client
+  tlsConfig := &tls.Config{
+    ClientAuth:     tls.RequireAndVerifyClientCert,
+    Certificates: []tls.Certificate{cert},
+    RootCAs:        caCertPool,
+    ClientCAs:      caCertPool,
+  }
+
+  transport := &http.Transport{
+    TLSClientConfig:    tlsConfig,
+    ForceAttemptHTTP2:  true,
+    MaxIdleConns:       10,
+    IdleConnTimeout:    30 * time.Second,
+    DisableCompression: true,
+  }
+
+  client := &http.Client{
+    Transport: transport,
+  }
+
+  resp, err := client.Get(config.Primary_Url)
   typeSetterMayBeFatal("Could not access the primary Nursery", err)
   defer resp.Body.Close()
   

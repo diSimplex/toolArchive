@@ -50,7 +50,7 @@ func createUserCertificate(theUser string, userNum int) {
     // we need to use DIFFERENT serial numbers for each of CA (1<<32),
     //  C/S (1<<33) and User (1<<34)
     SerialNumber: big.NewInt(
-      int64(1<<34) |
+      int64((1+userNum)<<34) |
       int64(config.Certificate_Authority.Serial_Number),
     ),    SignatureAlgorithm: x509.SHA512WithRSA,
     Subject: pkix.Name {

@@ -56,4 +56,4 @@ nurseries:
 
 # Now we provide a list of the individual user's email addresses.
 users:
-  - plato@platonist-maths.com
+  - name: plato@platonist-maths.com

@@ -53,6 +53,15 @@ type Nursery struct {
   Config_Path  string
 }
 
+type User struct {
+  Name         string
+  Ca_Cert_Path string
+  Cert_Path    string
+  Key_Path     string
+  Primary_Url  string
+  Config_Path  string
+}
+
 var config = struct {
 
   Federation_Name string `default:"nurseries"`
@@ -81,7 +90,7 @@ var config = struct {
 
   Nurseries []Nursery
 
-  Users []string
+  Users []User
 }{}
 
 type UserPassword struct{
@@ -119,7 +128,16 @@ var (
       "",                       // Primary_Url
       "",                       // Config_Path
     }
+    userDefaults = User{
+      "", // Name
+      "", // Ca_Cert_Path
+      "", // Cert_Path
+      "", // Key_Path
+      "", // Primary_Url
+      "", // Config_Path
+    }
   )
+
   const (
     configFileNameDefault =  "nurseries.yaml"
     configFileNameUsage   =  "The configuration file to load"
@@ -175,7 +193,8 @@ var (
 
   // now create each User's certificates
   for i, aUser := range config.Users {
-    createUserCertificate(aUser, i)
+    createUserCertificate(aUser.Name, i)
+    writeUserConfiguration(aUser, userDefaults, primaryNurseryUrl)
   }
 
   // now write out the file of user passwords

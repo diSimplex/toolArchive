@@ -18,10 +18,13 @@
 package main
 
 import (
+  "crypto/tls"
+  "crypto/x509"
   "encoding/json"
   "flag"
   "fmt"
   "github.com/jinzhu/configor"
+  "io/ioutil"
   "log"
   "math/rand"
   "os"
@@ -47,14 +50,30 @@ var config = struct {
 
 var configFileName string
 var showConfig     bool
+var serverCert     tls.Certificate
+var caCertPool     *x509.CertPool
 
 /////////////////////////////
 // Logging and Error handling
 //
-func configMayBeFatal(logMessage string, err error) {
+func cnNurseryMayBeFatal(logMessage string, err error) {
   if err != nil {
-    log.Fatalf("cnConfig(FATAL): %s ERROR: %s\n", logMessage, err)
+    log.Fatalf("cnNursery(FATAL): %s ERROR: %s", logMessage, err)
   }
+}
+
+func cnNurseryMayBeError(logMessage string, err error) {
+  if err != nil {
+    log.Printf("cnNursery(error): %s error: %s",logMessage, err)
+  }
+}
+
+func cnNurseryLog(logMesg string) {
+  log.Printf("cnNursery(info): %s", logMesg)
+}
+
+func cnNurseryLogf(logFormat string, v ...interface{}) {
+  log.Printf("cnNursery(info): "+logFormat, v...)
 }
 
 func main() {
@@ -81,7 +100,28 @@ func main() {
   // seed the math/rand random number generator with a "random" seed
   rand.Seed(time.Now().Unix())
 
+  // load the server and ca certificates for use by all client/servers in
+  // this Nursery
+  //
+  serverCert, err := tls.LoadX509KeyPair(config.Cert_Path, config.Key_Path)
+  cnNurseryMayBeFatal("Could not load cert/key pair", err)
+  if serverCert.Leaf != nil {
+//    if serverCert.Leaf.Subject != nil {
+//      if serverCert.Leaf.Subject.CommonName != nil {
+        cnNurseryLog("Loaded x509 certificate for "+serverCert.Leaf.Subject.CommonName)
+//      }
+//    }
+  }
+  //
+  caCert, err := ioutil.ReadFile(config.Ca_Cert_Path)
+  cnNurseryMayBeFatal("Could not load the CA certificate", err)
+  //
+  caCertPool := x509.NewCertPool()
+  caCertPool.AppendCertsFromPEM(caCert)
+
   go sendPeriodicHeartBeats()
+
+  handleHeartBeats()
 
   runWebServer()
 

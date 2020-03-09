@@ -23,30 +23,12 @@ import (
   "encoding/json"
   "flag"
   "fmt"
-  "github.com/jinzhu/configor"
   "io/ioutil"
   "log"
   "math/rand"
   "os"
   "time"
 )
-
-//////////////////////////
-// Configuration variables
-//
-
-var config = struct {
-  Name         string
-  Host         string
-  Interface    string
-  Port         uint
-  Html_Dir     string
-  Base_Url     string
-  Primary_Url  string
-  Ca_Cert_Path string
-  Cert_Path    string
-  Key_Path     string
-}{}
 
 var configFileName string
 var showConfig     bool
@@ -76,6 +58,15 @@ func cnNurseryLogf(logFormat string, v ...interface{}) {
   log.Printf("cnNursery(info): "+logFormat, v...)
 }
 
+func cnNurseryJson(logMesg string, valName string, aValue interface{}) {
+  jsonBytes, err := json.MarshalIndent(aValue, "", "  ")
+  if err != nil {
+    cnNurseryMayBeError("Could not marshal "+valName+" into json", err)
+    jsonBytes = make([]byte, 0)
+  }
+  log.Printf("cnNursery(json): %s", string(jsonBytes))
+}
+
 func main() {
   const (
     configFileNameDefault =  "nursery.yaml"
@@ -89,11 +80,11 @@ func main() {
   flag.BoolVar(&showConfig, "s", showConfigDefault, showConfigUsage)
   flag.Parse()
 
-  configor.Load(&config, configFileName)
+  loadConfiguration(configFileName)
 
   if showConfig {
-    configStr, _ := json.MarshalIndent(config, "", "  ")
-    fmt.Printf("%s\n", string(configStr))
+    configBytes, _ := configToJsonBytes()
+    fmt.Printf("%s\n", string(configBytes))
     os.Exit(0)
   }
 
@@ -103,20 +94,15 @@ func main() {
   // load the server and ca certificates for use by all client/servers in
   // this Nursery
   //
-  serverCert, err := tls.LoadX509KeyPair(config.Cert_Path, config.Key_Path)
+  var err error
+  lConfig := getConfig()
+  serverCert, err = tls.LoadX509KeyPair( lConfig.Cert_Path, lConfig.Key_Path )
   cnNurseryMayBeFatal("Could not load cert/key pair", err)
-  if serverCert.Leaf != nil {
-//    if serverCert.Leaf.Subject != nil {
-//      if serverCert.Leaf.Subject.CommonName != nil {
-        cnNurseryLog("Loaded x509 certificate for "+serverCert.Leaf.Subject.CommonName)
-//      }
-//    }
-  }
   //
-  caCert, err := ioutil.ReadFile(config.Ca_Cert_Path)
+  caCert, err := ioutil.ReadFile(lConfig.Ca_Cert_Path)
   cnNurseryMayBeFatal("Could not load the CA certificate", err)
   //
-  caCertPool := x509.NewCertPool()
+  caCertPool = x509.NewCertPool()
   caCertPool.AppendCertsFromPEM(caCert)
 
   go sendPeriodicHeartBeats()

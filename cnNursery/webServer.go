@@ -64,7 +64,9 @@ func runWebServer() {
     ClientCAs:      caCertPool,
   }
 
-  hostPort := config.Interface + ":" + strconv.Itoa(int(config.Port))
+  lConfig := getConfig()
+  hostPort := lConfig.Interface + ":" + strconv.Itoa(int(lConfig.Port))
+
   cnNurseryLogf("listening at [%s]\n", hostPort)
   listener, err := tls.Listen("tcp",  hostPort, tlsConfig)
   cnNurseryMayBeFatal("Could not create listener", err)

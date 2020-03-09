@@ -20,7 +20,7 @@ import (
   "encoding/json"
   "fmt"
 //  "github.com/bvinc/go-sqlite-lite/sqlite3"
-  "github.com/cornelk/hashmap"
+//  "github.com/cornelk/hashmap"
   "github.com/shirou/gopsutil/cpu"
   "github.com/shirou/gopsutil/load"
   "github.com/shirou/gopsutil/mem"
@@ -29,31 +29,13 @@ import (
   "math/rand"
   "net/http"
 //  "strings"
+//  "sync"
   "time"
 )
 
-type MemoryTU struct {
-  Total uint64
-  Used  uint64
-}
-
-type NurseryInfo struct {
-  Name      string
-  Port      uint
-  State     string
-  Processes uint
-  Cores     uint
-  Speed_Mhz float64
-  Memory    MemoryTU
-  Swap      MemoryTU
-  Load      struct {
-    Load1   float64
-    Load5   float64
-    Load15  float64
-  }
-}
-
 func sendPeriodicHeartBeats() {
+  lConfig := getConfig()
+
   // Setup HTTPS client
   tlsConfig := &tls.Config{
     ClientAuth:     tls.RequireAndVerifyClientCert,
@@ -76,7 +58,12 @@ func sendPeriodicHeartBeats() {
 
   for {
     time.Sleep(time.Duration(rand.Int63n(10)) * time.Second)
-    ni := NurseryInfo{ Name: "silly", Port: 8989, State: "up", Processes: 1 }
+    ni := NurseryInfo{
+      Name: lConfig.Name,
+      Port: lConfig.Port,
+      State: "up",
+      Processes: 1,
+    }
 
     loads, err := load.Avg()
     if err != nil {
@@ -113,11 +100,10 @@ func sendPeriodicHeartBeats() {
 
 //    jsonBytes, err := json.MarshalIndent(ni, "", "  ")
     jsonBytes, err := json.Marshal(ni)
-
     fmt.Printf("\nbeat request [%s]\n", string(jsonBytes))
 
     hbReq, err := http.NewRequest(http.MethodPost, 
-      config.Primary_Url + "/heartbeat",
+      lConfig.Primary_Url + "/heartbeat",
       bytes.NewReader(jsonBytes),
     )
     if err != nil {
@@ -127,7 +113,7 @@ func sendPeriodicHeartBeats() {
 
     resp, err := client.Do(hbReq)
     if err != nil {
-      cnNurseryMayBeFatal("Could not send heart beat request to the primary Nursery", err)
+      cnNurseryMayBeError("Could not send heart beat request to the primary Nursery", err)
       continue
     }
     defer resp.Body.Close()
@@ -140,15 +126,15 @@ func sendPeriodicHeartBeats() {
     }
 
     fmt.Printf("beat response [%s]\n\n", string(respBody))
+
+    jsonUnmarshalFederationInfo(respBody)
   }
 
 }
 
-var federationInfo *hashmap.HashMap
-
 func handleHeartBeats() {
 
-  federationInfo = &hashmap.HashMap{}
+  initHeartBeatInfo()
 
   http.HandleFunc("/heartbeat", func(w http.ResponseWriter, r *http.Request) {
     cnNurseryLogf("url: [%s] method: [%s]", r.URL.Path, r.Method)
@@ -161,23 +147,28 @@ func handleHeartBeats() {
         http.Error(w, "can't read body", http.StatusBadRequest)
         return
       }
-      var ni NurseryInfo
-      err = json.Unmarshal(body, ni)
+      cnNurseryLog("heartBeat body: "+string(body))
 
-      federationInfo.Set(ni.Name, ni)
+      err = setHeartBeatInfoNurseryFromJsonBytes(body)
+      cnNurseryMayBeError("Could not set the heart beat info from the POST body", err)
 
-      jsonBytes, err := json.Marshal(federationInfo)
+      jsonBytes, err := jsonMarshalHeartBeatInfo()
+      cnNurseryMayBeError("Could not marshal heart beat info", err)
+      cnNurseryLog("heartBeat fi: "+string(jsonBytes))
       w.Write(jsonBytes)
       return
     }
 
     if r.Method == http.MethodGet {
-      if repliedInJson(w, r, federationInfo) { return }
+      hbInfoMap := getHeartBeatInfoMap()
+      cnNurseryJson("hbInfoMap: ", "NurseryInfoMap", hbInfoMap)
+
+      if repliedInJson(w, r, hbInfoMap) { return }
 
       // we are replying to a (human) browser
 
       hbTemplate := heartBeatTemplate()
-      err := hbTemplate.Execute(w, federationInfo)
+      err := hbTemplate.Execute(w, hbInfoMap)
       if err != nil {
         cnNurseryMayBeError("Could not execute heart beat template", err)
         w.Write([]byte("Could not provide any federation information\nPlease try again!"))
@@ -209,21 +200,21 @@ func heartBeatTemplate() *template.Template {
         <th>Load 5 min</th>
         <th>Load 15 min</th>
       </tr>
-{{ range .FederationInfo }}
+{{ range $key, $value := . }}
       <tr>
-        <td>.Name</td>
-        <td>.Port</td>
-        <td>.State</td>
-        <td>.Processes</td>
-        <td>.Cores</td>
-        <td>.Speed_Mhz</td>
-        <td>.Memory.Total</td>
-        <td>.Memory.Used</td>
-        <td>.Swap.Total</td>
-        <td>.Swap.Used</td>
-        <td>.Load.Load1</td>
-        <td>.Load.Load5</td>
-        <td>.Load.Load15</td>
+        <td>{{$value.Name}}</td>
+        <td>{{$value.Port}}</td>
+        <td>{{$value.State}}</td>
+        <td>{{$value.Processes}}</td>
+        <td>{{$value.Cores}}</td>
+        <td>{{$value.Speed_Mhz}}</td>
+        <td>{{$value.Memory.Total}}</td>
+        <td>{{$value.Memory.Used}}</td>
+        <td>{{$value.Swap.Total}}</td>
+        <td>{{$value.Swap.Used}}</td>
+        <td>{{$value.Load.Load1}}</td>
+        <td>{{$value.Load.Load5}}</td>
+        <td>{{$value.Load.Load15}}</td>
       </tr>
 {{ end }}
     </table>

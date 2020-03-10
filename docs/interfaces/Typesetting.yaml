@@ -1,0 +1,57 @@
+# A YAML description of the typeSetting RESTful interface
+
+description: |
+  Responsible for initiating and controlling the typesetting of a given 
+  ConTeXt document. It is also responsible for assigning the "best" nursery 
+  for a given root ConTeXt binary's use.
+
+goTypes: |
+  type Arguments []string
+
+  type EnvValue struct {
+    key   string
+    value string
+  }
+
+  type EnvVars   []EnvValue
+
+  type ActionConfig struct {
+    ActionArgs Arguments
+    ActionEnvs EnvVars
+  }
+
+interface: 
+  - url: /action
+    method: GET
+    credentials: CommonName of the Client X509 certificate
+    action: None
+    response: The list of currently registered actions
+    jsonResp: []string
+
+  - url: /action/<anAction>
+    method: GET
+    action: None
+    response: List log files associated with this action
+
+  - url: /action/<anAction>
+    method: POST
+    jsonPost: ActionConfig
+    credentials: CommonName of the Client X509 certificate
+    action: Runs the <anAction>
+    response: |
+      Redirect to log browser which longPolls the log file produced by this 
+      action. (Note we could use mithril.js in an AJAX "pull" model to 
+      ensure the user does not see the whole page refresh).
+
+  - url: /action/<anAction>/<aRun>
+    method: GET
+    action: None
+    response: |
+      Browse the log files associated with <aRun> of the <anAction>
+
+  - url: /action/clear/<anAction>/<aRun>
+    method: GET
+    action: |
+      Clears the associated <aRun> of the <anAction> (or all runs if no 
+      <aRun> is provided)
+    response: List log files associated with this action

@@ -1,0 +1,62 @@
+# A YAML description of the artifact RESTful interface
+
+description: |
+  Responsible for both listing the current cached status of an artifact as 
+  well as downloading a given artifact.
+
+interface:
+  - url: /workspace
+    method: GET
+    credentials: CommonName of the Client X509 certificate
+    action: None
+    response: |
+      Lists the current workspaces associate with the given credentials
+
+  - url: /workspace/create/<aWorkSpace>
+    method: GET or PUT
+    credentials: CommonName of the Client X509 certificate
+    action: Creates <aWorkSpace> if it does not already exist
+    response: Lists the artifacts associated with the given <aWorkSpace>
+
+  - url: /workspace/clear/<aWorkSpace>
+    method: GET or DELETE
+    credentials: CommonName of the Client X509 certificate
+    action: Deletes all artifacts associated with <aWorkSpace>
+    response: Lists the artifacts associated with the given <aWorkSpace>
+
+  - url: /artifact/add/<aWorkSpace>/<anArtifactPath>
+    method: POST or PUT
+    credentials: CommonName of the Client X509 certificate
+    action: |
+      Saves the contents of the POSTed file in the <aWorkSpace> at the 
+      <anArtifactPath>
+    response: |
+      Lists the artifacts associated with the given <aWorkSpace> at the 
+      directory which contains the <anArtifactPath>
+
+  - url: /artifact/delete/<aWorkSpace>/<anArtifactPath>
+    method: GET or DELETE
+    credentials: CommonName of the Client X509 certificate
+    action: |
+      Deletes the artifact associated with <aWorkSpace> at the path 
+      <anArtifactPath>
+    response: |
+      Lists the artifacts associated with the given <aWorkSpace> at the 
+      directory which contains the <anArtifactPath>
+
+  - url: /artifact/list/<aWorkSpace>/<anArtifactPath>
+    method: GET
+    credentials: CommonName of the Client X509 certificate
+    action: None
+    response: |
+      Recursively lists the *status* of the artifacts associated with the 
+      given <aWorkSpace> at the directory which contains the 
+      <anArtifactPath>
+
+  - url: /artifact/<aWorkSpace>/<anArtifactPath>
+    method: GET
+    credentials: CommonName of the Client X509 certificate
+    action: None
+    response: |
+      Downloads the artifact associated with the given <aWorkSpace> at the 
+      <anArtifactPath>

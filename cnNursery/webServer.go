@@ -16,15 +16,15 @@ package main
 
 import (
   "crypto/tls"
-//  "crypto/x509"
   "encoding/json"
-//  "io/ioutil"
-//  "log"
-//  "net"
+  "html/template"
   "net/http"
   "strconv"
   "strings"
 )
+
+////////////////////////////////////////////////////////////////////////
+// Web Server
 
 func repliedInJson(w http.ResponseWriter, r *http.Request, value interface{}) bool {
   //
@@ -51,18 +51,11 @@ func repliedInJson(w http.ResponseWriter, r *http.Request, value interface{}) bo
 
 func runWebServer() {
 
-  http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-    cnNurseryLogf("url: [%s]", r.URL.Path)
-    w.Write([]byte("Hello from the webServer!"))
-  })
+  handleBasePage()
 
-  // Setup HTTPS client
-  tlsConfig := &tls.Config{
-    ClientAuth:     tls.RequireAndVerifyClientCert,
-    Certificates: []tls.Certificate{serverCert},
-    RootCAs:        caCertPool,
-    ClientCAs:      caCertPool,
-  }
+//  cnNurseryJson("tlsConfig.Certificates ", "tlsConfig,Certficates", tlsConfig.Certificates)
+//  cnNurseryJson("tlsConfig.RootCAs ", "tlsConfig,RootCAs", tlsConfig.RootCAs)
+//  cnNurseryJson("tlsConfig.ClientCAs ", "tlsConfig,ClientCAs", tlsConfig.ClientCAs)
 
   lConfig := getConfig()
   hostPort := lConfig.Interface + ":" + strconv.Itoa(int(lConfig.Port))
@@ -73,4 +66,73 @@ func runWebServer() {
 
   server := &http.Server{TLSConfig: tlsConfig }
   server.Serve(listener)
+}
+
+////////////////////////////////////////////////////////////////////////
+// Base page
+//
+
+type BasePageMapType map[string]string
+
+var basePageMap = make(BasePageMapType,0)
+
+func addBasePagePath(path string, description string) {
+  if path != "" {
+    basePageMap[path] = description
+  }
+}
+
+type BasePageDataType struct {
+  Name        string
+  BasePageMap BasePageMapType
+}
+
+func handleBasePage() {
+  http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+    lConfig := getConfig()
+
+    cnNurseryLogf("url: [%s] method: [%s]", r.URL.Path, r.Method)
+
+    if r.Method == http.MethodGet {
+
+      // we are replying to a (human) browser
+
+      bpTemplate := basePageTemplate()
+      err := bpTemplate.Execute(w, BasePageDataType{
+        Name: lConfig.Name,
+        BasePageMap: basePageMap,
+      })
+      if err != nil {
+        cnNurseryMayBeError("Could not execute base page template", err)
+        w.Write([]byte("Could not provide any ConTeXt Nursery information\nPlease try again!"))
+      }
+      return
+    }
+    http.Error(w, "Incorrect Request Method for /", http.StatusMethodNotAllowed)
+  })
+
+}
+
+func basePageTemplate() *template.Template {
+  basePageTemplateStr := `
+  <body>
+    <h1>ConTeXt Nursery on {{.Name}}</h1>
+    <ul>
+{{ range $path, $desc := .BasePageMap }}
+      <li>
+        <strong><a href="/{{$path}}">{{$path}}</a></strong>
+        <p>{{$desc}}</p>
+      </li>
+{{ end }}
+    </ul>
+ </body>
+
+`
+
+  theTemplate := template.New("body")
+
+  theTemplate, err := theTemplate.Parse(basePageTemplateStr)
+  cnNurseryMayBeFatal("Could not parse the internal base page template", err)
+
+  return theTemplate
 }

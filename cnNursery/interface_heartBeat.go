@@ -16,11 +16,8 @@ package main
 
 import (
   "bytes"
-  "crypto/tls"
   "encoding/json"
   "fmt"
-//  "github.com/bvinc/go-sqlite-lite/sqlite3"
-//  "github.com/cornelk/hashmap"
   "github.com/shirou/gopsutil/cpu"
   "github.com/shirou/gopsutil/load"
   "github.com/shirou/gopsutil/mem"
@@ -28,21 +25,14 @@ import (
   "io/ioutil"
   "math/rand"
   "net/http"
-//  "strings"
-//  "sync"
   "time"
 )
 
+///////////////////////
+// Heart Beat interface
+
 func sendPeriodicHeartBeats() {
   lConfig := getConfig()
-
-  // Setup HTTPS client
-  tlsConfig := &tls.Config{
-    ClientAuth:     tls.RequireAndVerifyClientCert,
-    Certificates: []tls.Certificate{serverCert},
-    RootCAs:        caCertPool,
-    ClientCAs:      caCertPool,
-  }
 
   transport := &http.Transport{
     TLSClientConfig:    tlsConfig,
@@ -100,7 +90,7 @@ func sendPeriodicHeartBeats() {
 
 //    jsonBytes, err := json.MarshalIndent(ni, "", "  ")
     jsonBytes, err := json.Marshal(ni)
-    fmt.Printf("\nbeat request [%s]\n", string(jsonBytes))
+    fmt.Printf("\nbeat request [%s]\n\n", string(jsonBytes))
 
     hbReq, err := http.NewRequest(http.MethodPost, 
       lConfig.Primary_Url + "/heartbeat",
@@ -136,6 +126,8 @@ func handleHeartBeats() {
 
   initHeartBeatInfo()
 
+//  addBasePagePath("heartbeat", "heartbeat description")
+
   http.HandleFunc("/heartbeat", func(w http.ResponseWriter, r *http.Request) {
     cnNurseryLogf("url: [%s] method: [%s]", r.URL.Path, r.Method)
 
@@ -143,7 +135,7 @@ func handleHeartBeats() {
 
       body, err := ioutil.ReadAll(r.Body)
       if err != nil {
-        cnNurseryMayBeError("Could not ready body of post request", err)
+        cnNurseryMayBeError("Could not read body of /heartbeat post request", err)
         http.Error(w, "can't read body", http.StatusBadRequest)
         return
       }
@@ -175,7 +167,7 @@ func handleHeartBeats() {
       }
       return
     }
-    http.Error(w, "Incorrect Request Method", http.StatusMethodNotAllowed)
+    http.Error(w, "Incorrect Request Method for /heartbeat", http.StatusMethodNotAllowed)
   })
 
 }
@@ -202,7 +194,7 @@ func heartBeatTemplate() *template.Template {
       </tr>
 {{ range $key, $value := . }}
       <tr>
-        <td>{{$value.Name}}</td>
+        <td><a href="https://{{$value.Name}}:{{$value.Port}}">{{$value.Name}}</a></td>
         <td>{{$value.Port}}</td>
         <td>{{$value.State}}</td>
         <td>{{$value.Processes}}</td>

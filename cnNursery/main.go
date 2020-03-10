@@ -23,7 +23,6 @@ import (
   "encoding/json"
   "flag"
   "fmt"
-  "io/ioutil"
   "log"
   "math/rand"
   "os"
@@ -91,23 +90,25 @@ func main() {
   // seed the math/rand random number generator with a "random" seed
   rand.Seed(time.Now().Unix())
 
-  // load the server and ca certificates for use by all client/servers in
-  // this Nursery
-  //
-  var err error
-  lConfig := getConfig()
-  serverCert, err = tls.LoadX509KeyPair( lConfig.Cert_Path, lConfig.Key_Path )
-  cnNurseryMayBeFatal("Could not load cert/key pair", err)
-  //
-  caCert, err := ioutil.ReadFile(lConfig.Ca_Cert_Path)
-  cnNurseryMayBeFatal("Could not load the CA certificate", err)
-  //
-  caCertPool = x509.NewCertPool()
-  caCertPool.AppendCertsFromPEM(caCert)
+  ////////////////////////////////
+  // initialize interfaces
+  //   BEFORE we start any threads
 
-  go sendPeriodicHeartBeats()
+  handleControl()
 
-  handleHeartBeats()
+//  handleHeartBeats()
+
+  //////////////////////////////////////
+  // initialize the TLS configuration
+  //   for all client/server connections
+  //   BEFORE we start any threads
+
+  initializeTLS()
+
+  /////////////////////////////////////
+  // Start client and webServer threads
+
+//  go sendPeriodicHeartBeats()
 
   runWebServer()
 

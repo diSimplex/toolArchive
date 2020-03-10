@@ -1,0 +1,49 @@
+# A YAML description of the discovery RESTful interface
+
+description: |
+  Responsible for communicating regular load average, discovery, and 
+  heartbeat messages.
+
+goTypes: |
+  type MemoryTU struct {
+    Total uint64
+    Used  uint64
+  }
+  
+  type NurseryInfo struct {
+    Name      string
+    Port      uint
+    State     string
+    Processes uint
+    Cores     uint
+    Speed_Mhz float64
+    Memory    MemoryTU
+    Swap      MemoryTU
+    Load      struct {
+      Load1   float64
+      Load5   float64
+      Load15  float64
+    }
+  }
+  
+  type NurseryInfoMap map[string]NurseryInfo
+
+interface:
+  - url: /heartbeat
+    method: GET
+    action: None
+    credentials: CommonName of the Client X509 certificate
+    response: |
+      Lists the currently known NurseryInfo of Nurseries in the Federation
+    jsonResp: NurseryInfoMap
+
+  - url: /heartbeat
+    method: POST
+    jsonPost: NurseryInfo
+    credentials: CommonName of the Client X509 certificate
+    action: |
+      Adds or updates the NurseryInfo for the Named Nursery into the 
+      Federation wide NurseryInfo map
+    response: |
+      Lists the currently known NurseryInfo of Nurseries in the Federation
+    jsonResp: NurseryInfoMap

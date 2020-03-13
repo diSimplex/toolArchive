@@ -38,7 +38,7 @@ type ConfigType struct {
   Name         string
   Host         string
   Interface    string
-  Port         uint
+  Port         string
   Html_Dir     string
   Base_Url     string
   Primary_Url  string

@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This code has been inspired by: Shane Utt's excellent article:
-//   https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
-
 package main
 
 import (
   "crypto/tls"
   "crypto/x509"
-  "encoding/json"
   "flag"
   "fmt"
-  "log"
+  "github.com/diSimplex/ConTeXtNursery/clientConnection"
+  "github.com/diSimplex/ConTeXtNursery/interfaces/discovery"
+  "github.com/diSimplex/ConTeXtNursery/logger"
+  "github.com/diSimplex/ConTeXtNursery/webserver"
   "math/rand"
   "os"
   "time"
@@ -33,38 +32,9 @@ var configFileName string
 var showConfig     bool
 var serverCert     tls.Certificate
 var caCertPool     *x509.CertPool
+var cnInfoMap      *CNInfoMap
 
-/////////////////////////////
-// Logging and Error handling
-//
-func cnNurseryMayBeFatal(logMessage string, err error) {
-  if err != nil {
-    log.Fatalf("cnNursery(FATAL): %s ERROR: %s", logMessage, err)
-  }
-}
-
-func cnNurseryMayBeError(logMessage string, err error) {
-  if err != nil {
-    log.Printf("cnNursery(error): %s error: %s",logMessage, err)
-  }
-}
-
-func cnNurseryLog(logMesg string) {
-  log.Printf("cnNursery(info): %s", logMesg)
-}
-
-func cnNurseryLogf(logFormat string, v ...interface{}) {
-  log.Printf("cnNursery(info): "+logFormat, v...)
-}
-
-func cnNurseryJson(logMesg string, valName string, aValue interface{}) {
-  jsonBytes, err := json.MarshalIndent(aValue, "", "  ")
-  if err != nil {
-    cnNurseryMayBeError("Could not marshal "+valName+" into json", err)
-    jsonBytes = make([]byte, 0)
-  }
-  log.Printf("cnNursery(json): %s", string(jsonBytes))
-}
+var cnLog = logger.CreateLogger("cnNursery")
 
 func main() {
   const (
@@ -90,26 +60,44 @@ func main() {
   // seed the math/rand random number generator with a "random" seed
   rand.Seed(time.Now().Unix())
 
+  cnLog.SetPrintStack(true)
+
   ////////////////////////////////
   // initialize interfaces
   //   BEFORE we start any threads
+  lConfig := getConfig()
 
-  handleControl()
+  cnInfoMap = CreateCNInfoMap()
 
-//  handleHeartBeats()
+  cc := clientConnection.CreateClientConnection(
+    lConfig.Primary_Url,
+    lConfig.Ca_Cert_Path, lConfig.Cert_Path, lConfig.Key_Path,
+    cnLog,
+  )
 
-  //////////////////////////////////////
-  // initialize the TLS configuration
-  //   for all client/server connections
-  //   BEFORE we start any threads
+  ws := webserver.CreateWebServer(
+    lConfig.Interface, lConfig.Port, `
 
-  initializeTLS()
+The cnNursery process provides a RESTful interface to the federation of
+ConTeXt Nurseries.
+
+Each ConTeXt Nursery in the federation is capable of managing the type
+setting of one or more ConTeXt based (sub)documents in parallel.
+
+`,
+  lConfig.Ca_Cert_Path, lConfig.Cert_Path, lConfig.Key_Path,
+  cnLog,
+  )
+
+//  handleControl()
+
+  discovery.AddDiscoveryInterface(ws, cnInfoMap)
 
   /////////////////////////////////////
   // Start client and webServer threads
 
-//  go sendPeriodicHeartBeats()
+  go sendPeriodicHeartBeats(cc)
 
-  runWebServer()
+  ws.RunWebServer()
 
 }

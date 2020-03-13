@@ -119,3 +119,21 @@ discovery messages and use the first Nersury it finds?
 - [Securing Cookie Based 
   Authentication](https://stackoverflow.com/questions/1283594/securing-cookie-based-authentication)
 
+### RESTful definitions
+
+- [What is REST? && What should the verbs 
+  do?](https://stackoverflow.com/a/19642955)
+
+- [RESTful Create, read, update and 
+  delete](https://en.wikipedia.org/wiki/Create,_read,_update_and_delete#Database_applications)
+
+- [Hypermedia as the Engine of Application State 
+  (HATEOAS)](https://en.wikipedia.org/wiki/HATEOAS)
+
+- [Using HTTP Methods for RESTful 
+  Services](https://www.restapitutorial.com/lessons/httpmethods.html)
+
+- [Using HTTP Methods RESTfully](https://restfulapi.net/http-methods/)
+
+- [When should we use PUT and when should we use 
+  POST?](http://restcookbook.com/HTTP%20Methods/put-vs-post/)

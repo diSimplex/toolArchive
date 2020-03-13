@@ -20,11 +20,11 @@ package discovery
 import (
   "encoding/json"
   "fmt"
+  "github.com/diSimplex/ConTeXtNursery/clientConnection"
+  "github.com/diSimplex/ConTeXtNursery/webserver"
   "html/template"
   "io/ioutil"
   "net/http"
-  "github.com/diSimplex/ConTeXtNursery/clientConnection"
-  "github.com/diSimplex/ConTeXtNursery/webserver"
 )
 
 //////////////////////////////////////////////////////////////////////
@@ -66,6 +66,7 @@ type NurseryInfoMap map[string]NurseryInfo
 
 //////////////////////////////////////////////////////////////////////
 // Discovery interface functions
+//
 
 // The Callbacks required to implement the Discovery RESTful HTTP
 // interface responsible for communicating regular load average,

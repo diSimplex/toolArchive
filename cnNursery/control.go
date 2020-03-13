@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This code has been inspired by: Shane Utt's excellent article:
-//   https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
-
 package main
 
 import (
@@ -31,9 +28,22 @@ import (
 ////////////////////
 // Control interface
 
-// /control/up
-// /control/pause
-// /control/down
+type CNState struct {
+  Mutex sync.RWMutex
+  State control.NurseryState
+}
+
+func CreateCNState() *CNState {
+  return &CNState{}
+}
+
+func (cnState *CNState) ActionChangeNurseryState(stateChange string) {
+
+}
+
+func (cnState *CNState) ActionChangeFederationState(stateChange string) {
+
+}
 
 func handleControl() {
 

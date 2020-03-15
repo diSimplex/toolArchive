@@ -20,6 +20,7 @@ import (
   "flag"
   "fmt"
   "github.com/diSimplex/ConTeXtNursery/clientConnection"
+  "github.com/diSimplex/ConTeXtNursery/interfaces/control"
   "github.com/diSimplex/ConTeXtNursery/interfaces/discovery"
   "github.com/diSimplex/ConTeXtNursery/logger"
   "github.com/diSimplex/ConTeXtNursery/webserver"
@@ -33,6 +34,7 @@ var showConfig     bool
 var serverCert     tls.Certificate
 var caCertPool     *x509.CertPool
 var cnInfoMap      *CNInfoMap
+var cnState        *CNState
 
 var cnLog = logger.CreateLogger("cnNursery")
 
@@ -67,10 +69,7 @@ func main() {
   //   BEFORE we start any threads
   lConfig := getConfig()
 
-  cnInfoMap = CreateCNInfoMap()
-
   cc := clientConnection.CreateClientConnection(
-    lConfig.Primary_Url,
     lConfig.Ca_Cert_Path, lConfig.Cert_Path, lConfig.Key_Path,
     cnLog,
   )
@@ -91,7 +90,11 @@ setting of one or more ConTeXt based (sub)documents in parallel.
 
 //  handleControl()
 
+  cnInfoMap = CreateCNInfoMap()
   discovery.AddDiscoveryInterface(ws, cnInfoMap)
+
+  cnState = CreateCNState(ws, cc)
+  control.AddControlInterface(ws, cnState)
 
   /////////////////////////////////////
   // Start client and webServer threads

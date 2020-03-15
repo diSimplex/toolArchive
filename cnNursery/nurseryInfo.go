@@ -43,6 +43,20 @@ func CreateCNInfoMap() *CNInfoMap {
   return &infoMap
 }
 
+type ANurseryAction func(string)
+
+func (cniMap *CNInfoMap) DoToAllOthers(anAction ANurseryAction) {
+  lConfig := getConfig()
+
+  cniMap.Mutex.Lock()
+  defer cniMap.Mutex.Unlock()
+
+  for aKey, aValue := range cniMap.NI {
+    if aKey == lConfig.Name { continue } // do not do this to myself!
+    anAction(aValue.Base_Url)
+  }
+}
+
 func (cniMap *CNInfoMap) ActionUpdateNurseryInfo(ni discovery.NurseryInfo) {
   cniMap.Mutex.Lock()
   defer cniMap.Mutex.Unlock()
@@ -90,7 +104,7 @@ func (cniMap *CNInfoMap) ResponseListNurseryInformationTemplate() *template.Temp
       </tr>
 {{ range $key, $value := . }}
       <tr>
-        <td><a href="https://{{$value.Name}}:{{$value.Port}}">{{$value.Name}}</a><$
+        <td><a href="{{$value.Base_Url}}">{{$value.Name}}</a></td>
         <td>{{$value.Port}}</td>
         <td>{{$value.State}}</td>
         <td>{{$value.Processes}}</td>

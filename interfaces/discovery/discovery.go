@@ -44,6 +44,7 @@ type MemoryTU struct {
 type NurseryInfo struct {
   Name      string
   Port      string
+  Base_Url  string
   State     string
   Processes uint
   Cores     uint
@@ -108,6 +109,7 @@ type DiscoveryImpl interface {
 //      jsonResp: NurseryInfoMap
 //
 func SendDiscoveryMessage(
+  primaryUrl string,
   ni NurseryInfo,
   cc *clientConnection.CC,
 ) *NurseryInfoMap {
@@ -116,7 +118,7 @@ func SendDiscoveryMessage(
 
   fmt.Printf("\nbeat request [%s]\n\n", string(jsonBytes))
 
-  respBody := cc.SendJsonMessage("/heartbeat", http.MethodPost, jsonBytes)
+  respBody := cc.SendJsonMessage(primaryUrl, "/heartbeat", http.MethodPost, jsonBytes)
 
   fmt.Printf("\nbeat response [%s]\n\n", string(respBody))
 

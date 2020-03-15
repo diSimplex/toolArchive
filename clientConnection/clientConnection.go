@@ -29,12 +29,10 @@ import (
 
 type CC struct {
   Client     *http.Client
-  PrimaryURL  string
   Log        *logger.LoggerType
 }
 
 func CreateClientConnection(
-  primaryUrl  string,
   caCertPath, certPath, keyPath string,
   cnLog      *logger.LoggerType,
 ) *CC {
@@ -72,7 +70,6 @@ func CreateClientConnection(
   cc.Client = &http.Client{
     Transport: transport,
   }
-  cc.PrimaryURL = primaryUrl
 
   cc.Log = cnLog
 
@@ -80,13 +77,13 @@ func CreateClientConnection(
 }
 
 
-func (cc CC) SendJsonMessage(url, method string, jsonBytes []byte) []byte {
+func (cc CC) SendJsonMessage(baseUrl, url, method string, jsonBytes []byte) []byte {
 
   replyBytes := []byte{}
 
   hbReq, err := http.NewRequest(
     method,
-    cc.PrimaryURL + url,
+    baseUrl + url,
     bytes.NewReader(jsonBytes),
   )
   if err != nil {

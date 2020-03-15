@@ -16,12 +16,17 @@ package main
 
 import (
 //  "bytes"
+  "context"
 //  "encoding/json"
-  "fmt"
+//  "fmt"
+  "github.com/diSimplex/ConTeXtNursery/clientConnection"
+  "github.com/diSimplex/ConTeXtNursery/interfaces/control"
+  "github.com/diSimplex/ConTeXtNursery/webserver"
   "html/template"
 //  "io/ioutil"
 //  "math/rand"
-  "net/http"
+//  "net/http"
+  "sync"
 //  "time"
 )
 
@@ -31,52 +36,38 @@ import (
 type CNState struct {
   Mutex sync.RWMutex
   State control.NurseryState
+  Ws    *webserver.WS
+  Cc    *clientConnection.CC
 }
 
-func CreateCNState() *CNState {
-  return &CNState{}
+func CreateCNState(ws *webserver.WS, cc *clientConnection.CC) *CNState {
+  return &CNState{Ws: ws, Cc: cc}
 }
 
 func (cnState *CNState) ActionChangeNurseryState(stateChange string) {
-
+  switch stateChange {
+    case control.StateUp     : cnState.State.State = stateChange
+    case control.StatePaused : cnState.State.State = stateChange
+    case control.StateDown   : cnState.State.State = stateChange
+    case control.StateKill   : cnState.State.State = stateChange
+      cnState.Ws.Server.Shutdown(context.Background())
+  }
 }
 
 func (cnState *CNState) ActionChangeFederationState(stateChange string) {
-
-}
-
-func handleControl() {
-
-  addBasePagePath("control", "control description")
-
-  http.HandleFunc("/control", func(w http.ResponseWriter, r *http.Request) {
-    cnNurseryLogf("url: [%s] method: [%s]", r.URL.Path, r.Method)
-
-    if r.Method == http.MethodGet {
-      ctlPath := r.URL.Path
-      fmt.Printf("control path: [%s]\n", ctlPath)
-//      hbInfoMap := getHeartBeatInfoMap()
-//      cnNurseryJson("hbInfoMap: ", "NurseryInfoMap", hbInfoMap)
-
-//      if repliedInJson(w, r, hbInfoMap) { return }
-
-      // we are replying to a (human) browser
-
-//      hbTemplate := heartBeatTemplate()
-//      err := hbTemplate.Execute(w, hbInfoMap)
-//      if err != nil {
-//        cnNurseryMayBeError("Could not execute heart beat template", err)
-//        w.Write([]byte("Could not provide any federation information\nPlease try a$
-//      }
-      w.Write([]byte("Hello from control\n"))
-      return
-    }
-    http.Error(w, "Incorrect Request Method for /control", http.StatusMethodNotAllowed)
+  cnInfoMap.DoToAllOthers(func (baseUrl string) {
+    control.SendNurseryControlMessage(baseUrl, stateChange, cnState.Cc)
   })
-
+  lConfig := getConfig()
+  control.SendNurseryControlMessage(lConfig.Base_Url, stateChange, cnState.Cc)
 }
 
-func controlTemplate() *template.Template {
+func (cnState *CNState) ResponseListFederationStatusJSON() *control.FederationStateMap {
+
+  return nil
+}
+
+func (cnState *CNState) ResponseListFederationStatusTemplate() *template.Template {
   controlTemplateStr := `
   <body>
     <h1>Federation Control Information</h1>
@@ -119,8 +110,7 @@ func controlTemplate() *template.Template {
   theTemplate := template.New("body")
 
   theTemplate, err := theTemplate.Parse(controlTemplateStr)
-  cnNurseryMayBeFatal("Could not parse the internal control template", err)
+  cnLog.MayBeFatal("Could not parse the internal control template", err)
 
   return theTemplate
 }
-

@@ -45,6 +45,13 @@ type NurseryState struct {
 //
 type FederationStateMap map[string]NurseryState
 
+const (
+  StateUp     = "up"
+  StatePaused = "paused"
+  StateDown   = "down"
+  StateKill   = "kill"
+)
+
 //////////////////////////////////////////////////////////////////////
 // Control interface functions
 //
@@ -105,10 +112,10 @@ type ControlImpl interface {
 //      response: None
 //
 func SendNurseryControlMessage(
-  stateChange string,
+  baseUrl, stateChange string,
   cc *clientConnection.CC,
 ) *FederationStateMap {
-  respBody := cc.SendJsonMessage("/control/"+stateChange, http.MethodPut, []byte{})
+  respBody := cc.SendJsonMessage(baseUrl, "/control/"+stateChange, http.MethodPut, []byte{})
 
   fmt.Printf("\ncontrol response [%s]\n\n", string(respBody))
 

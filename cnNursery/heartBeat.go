@@ -35,6 +35,7 @@ func sendPeriodicHeartBeats(cc *clientConnection.CC) {
     ni := discovery.NurseryInfo{
       Name: lConfig.Name,
       Port: lConfig.Port,
+      Base_Url: lConfig.Base_Url,
       State: "up",
       Processes: 1,
     }
@@ -73,7 +74,7 @@ func sendPeriodicHeartBeats(cc *clientConnection.CC) {
     ni.Swap.Used  = swapMem.Used
 
     cnLog.Json("beat request ", "ni", ni)
-    niInfoMap := discovery.SendDiscoveryMessage(ni, cc)
+    niInfoMap := discovery.SendDiscoveryMessage(lConfig.Primary_Url, ni, cc)
     cnLog.Json("beat response ", "niInfoMap", niInfoMap)
     cnInfoMap.ActionUpdateNurseryInfoMap(niInfoMap)
   }

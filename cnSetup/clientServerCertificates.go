@@ -44,13 +44,38 @@ func createNurseryCertificate(nursery *Nursery, nurseryNum int) {
     return
   }
 
-  fmt.Printf("\n\nCreating configuration for the [%s] Nursery\n", nursery.Name)
+  nDir := "servers/"+nursery.Name
+  os.MkdirAll(nDir, 0755)
+  if nursery.Ca_Cert_Path == "" {
+    nursery.Ca_Cert_Path = nDir+"/"+nursery.Name+"-ca-crt.pem"
+  }
+  caCertFile, caCertErr := os.Open(nursery.Ca_Cert_Path)
+  if nursery.Cert_Path == "" {
+    nursery.Cert_Path = nDir+"/"+nursery.Name+"-crt.pem"
+  }
+  certFile, certErr := os.Open(nursery.Ca_Cert_Path)
+  if nursery.Key_Path == "" {
+    nursery.Key_Path = nDir+"/"+nursery.Name+"-key.pem"
+  }
+  keyFile, keyErr := os.Open(nursery.Ca_Cert_Path)
+
+  if (caCertErr == nil && certErr == nil && keyErr == nil) {
+    fmt.Printf("\n\nCertificate files for the [%s] Nursery already exist\n", nursery.Name)
+    fmt.Print( "  not recreating them.\n")
+    caCertFile.Close()
+    certFile.Close()
+    keyFile.Close()
+    return
+  }
+
+  fmt.Printf("\n\nCreating certificate files for the [%s] Nursery\n", nursery.Name)
 
   nCert := &x509.Certificate {
     // we need to use DIFFERENT serial numbers for each of CA (1<<32), 
-    //  C/S (1<<33) and User (1<<34)
+    //  C/S  ((1<<5 + nurseryNum)<<33) and
+    //  User ((2<<5 + userNum)<<33)
     SerialNumber: big.NewInt(
-      int64(1<<33) |
+      int64(1<<5 + nurseryNum)<<33 |
       int64(config.Certificate_Authority.Serial_Number),
     ),    SignatureAlgorithm: x509.SHA512WithRSA,
     Subject: pkix.Name {
@@ -97,9 +122,6 @@ func createNurseryCertificate(nursery *Nursery, nurseryNum int) {
   nSubject := "Subject: ConTeXt Nursery " + config.Federation_Name + " Server Certificate for ["+nursery.Name+"] Nursery"
   nDate    := "Date:    "+time.Now().String()+"\n"
 
-  nDir := "servers/"+nursery.Name
-  os.MkdirAll(nDir, 0755)
-
   caPEM := new(bytes.Buffer)
   caPEM.WriteString("\n")
   caPEM.WriteString(nSubject + " (CA)\n")
@@ -108,9 +130,6 @@ func createNurseryCertificate(nursery *Nursery, nurseryNum int) {
     Type:  "CERTIFICATE",
     Bytes: caCert.Raw,
   })
-  if nursery.Ca_Cert_Path == "" {
-    nursery.Ca_Cert_Path = nDir+"/"+nursery.Name+"-ca-crt.pem"
-  }
   os.MkdirAll(filepath.Dir(nursery.Ca_Cert_Path), 0755)
   err = ioutil.WriteFile(nursery.Ca_Cert_Path, caPEM.Bytes(), 0644)
   setupMayBeFatal("could not write the ["+nursery.Ca_Cert_Path+"] file", err)
@@ -133,9 +152,6 @@ func createNurseryCertificate(nursery *Nursery, nurseryNum int) {
     Type:  "CERTIFICATE",
     Bytes: caCert.Raw,
   })
-  if nursery.Cert_Path == "" {
-    nursery.Cert_Path = nDir+"/"+nursery.Name+"-crt.pem"
-  }
   os.MkdirAll(filepath.Dir(nursery.Cert_Path), 0755)
   err = ioutil.WriteFile(nursery.Cert_Path, nPEM.Bytes(), 0644)
   setupMayBeFatal("could not write the ["+nursery.Cert_Path+"] file", err)
@@ -152,9 +168,6 @@ func createNurseryCertificate(nursery *Nursery, nurseryNum int) {
     Type: "RSA PRIVATE KEY",
     Bytes: x509.MarshalPKCS1PrivateKey(nPrivateKey),
   })
-  if nursery.Key_Path == "" {
-    nursery.Key_Path = nDir+"/"+nursery.Name+"-key.pem"
-  }
   os.MkdirAll(filepath.Dir(nursery.Key_Path), 0755)
   err = ioutil.WriteFile(nursery.Key_Path, nPrivateKeyPEM.Bytes(), 0644)
   setupMayBeFatal("could not write the ["+nursery.Key_Path+"] file", err)

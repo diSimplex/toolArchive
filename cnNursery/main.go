@@ -101,6 +101,8 @@ setting of one or more ConTeXt based (sub)documents in parallel.
 
   go sendPeriodicHeartBeats(cc)
 
+  go grimReaper(cc)  // periodically cull Nurseries which we can not connect to
+
   ws.RunWebServer()
 
 }

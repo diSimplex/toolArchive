@@ -114,6 +114,10 @@ func (cnState *CNState) ResponseListFederationStatusJSON() *control.FederationSt
 
 func (cnState *CNState) ResponseListFederationStatusTemplate() *template.Template {
   controlTemplateStr := `
+  <head>
+    <title>Federation Control Information</title>
+    <meta http-equiv="refresh" content="5" />
+  </head>
   <body>
     <h1>Federation Control Information</h1>
     <table>

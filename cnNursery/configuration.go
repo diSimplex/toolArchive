@@ -73,3 +73,10 @@ func configToJsonBytes() ([]byte, error) {
 
   return json.MarshalIndent(configPriv, "", "  ")
 }
+
+func isPrimary() bool {
+  configSync.RLock()
+  defer configSync.RUnlock()
+
+  return configPriv.Base_Url == configPriv.Primary_Url
+}

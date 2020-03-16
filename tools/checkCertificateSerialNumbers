@@ -1,0 +1,29 @@
+#!/usr/bin/env ruby
+
+# This ruby tool dumps each "*crt.pem" file and checks that all of the 
+# serial numbers are unique.
+
+fileNames = `find -iname "*crt.pem"`
+
+serialNums = Hash.new
+
+fileNames.each_line do | aPemFile |
+  aPemFile.chomp!
+  pemText = `openssl x509 -text -in #{aPemFile}`
+  serialNumber = ""
+  pemText.each_line do | aLine |
+    serialNumber = aLine.strip() if aLine =~/Serial Number/
+  end
+  serialNums[serialNumber] = Array.new unless serialNums.has_key?(serialNumber)
+  serialNums[serialNumber].push(aPemFile)
+end
+
+puts ""
+serialNums.each_key.sort.each do | aSerialNumber |
+  puts aSerialNumber
+  serialNums[aSerialNumber].each.sort.each do | aPemFile |
+    puts "\t#{aPemFile}"
+  end
+  puts ""
+end
+

@@ -18,6 +18,7 @@
 package main
 
 import (
+  "bufio"
   "encoding/json"
   "flag"
   "fmt"
@@ -25,7 +26,7 @@ import (
   "log"
   "os"
   "time"
-//  "strings"
+  "strings"
 // temp
 //  "bytes"
 //  "crypto/x509"
@@ -93,11 +94,7 @@ var config = struct {
   Users []User
 }{}
 
-type UserPassword struct{
-  User_Name string
-  Password  string
-}
-var userPasswords []UserPassword
+var userPasswords = map[string]string{}
 
 var configFileName string
 var showConfig     bool
@@ -191,6 +188,21 @@ var (
     writeNurseryConfiguration(&aNursery, primaryNurseryUrl)
   }
 
+  // start by loading in the existing user passwords
+  passwordFile, err := os.Open("users/passwords")
+  if err == nil {
+    scanner := bufio.NewScanner(passwordFile)
+    scanner.Split(bufio.ScanLines)
+    for scanner.Scan() {
+      aLine := scanner.Text()
+      fields    := strings.Split(aLine, "\t")
+      aUser     := fields[0]
+      aPassword := fields[1]
+      userPasswords[aUser] = aPassword
+    }
+    passwordFile.Close()
+  }
+
   // now create each User's certificates
   for i, aUser := range config.Users {
     createUserCertificate(aUser.Name, i)
@@ -198,10 +210,10 @@ var (
   }
 
   // now write out the file of user passwords
-  passwordFile, err := os.Create("users/passwords")
+  passwordFile, err = os.Create("users/passwords")
   setupMayBeFatal("Could not open [users/passwords] file", err)
-  for _, aUserPassword := range userPasswords {
-    passwordFile.WriteString(aUserPassword.User_Name+"\t"+aUserPassword.Password+"\n")
+  for aUser, aPassword := range userPasswords {
+    passwordFile.WriteString(aUser+"\t"+aPassword+"\n")
   }
   passwordFile.Close()
   os.Chmod("users/passwords", 0600)

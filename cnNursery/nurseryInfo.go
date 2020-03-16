@@ -66,6 +66,15 @@ func (cniMap *CNInfoMap) DoToAll(anAction ANurseryAction) {
   }
 }
 
+func (cniMap *CNInfoMap) DeleteAll(deadNurseries []string) {
+  cniMap.Mutex.Lock()
+  defer cniMap.Mutex.Unlock()
+
+  for _, aNursery := range deadNurseries {
+    delete(cniMap.NI, aNursery)
+  }
+}
+
 func (cniMap *CNInfoMap) ActionUpdateNurseryInfo(ni discovery.NurseryInfo) {
   cniMap.Mutex.Lock()
   defer cniMap.Mutex.Unlock()
@@ -93,6 +102,10 @@ func (cniMap *CNInfoMap) ResponseListNurseryInformationJSON() discovery.NurseryI
 
 func (cniMap *CNInfoMap) ResponseListNurseryInformationTemplate() *template.Template {
   heartBeatTemplateStr := `
+  <head>
+    <title>Federation Heart Beat Information</title>
+    <meta http-equiv="refresh" content="5" />
+  </head>
   <body>
     <h1>Federation Heart Beat Information</h1>
     <table>

@@ -77,24 +77,14 @@ func CreateClientConnection(
 }
 
 
-func (cc CC) SendJsonMessage(baseUrl, url, method string, jsonBytes []byte) []byte {
+func (cc CC) GetMessage(baseUrl, url string) []byte {
 
   replyBytes := []byte{}
 
-  hbReq, err := http.NewRequest(
-    method,
-    baseUrl + url,
-    bytes.NewReader(jsonBytes),
-  )
-  if err != nil {
-    cc.Log.MayBeError("Could not create heart beat request", err)
-    return replyBytes
-  }
-
-  resp, err := cc.Client.Do(hbReq)
+  resp, err := cc.Client.Get(baseUrl + url)
   if err != nil {
     cc.Log.MayBeError(
-      "Could not send heart beat request to the primary Nursery",
+      "Could not get client connection request to the Nursery: "+baseUrl,
       err,
     )
     if resp != nil {
@@ -108,7 +98,49 @@ func (cc CC) SendJsonMessage(baseUrl, url, method string, jsonBytes []byte) []by
   resp.Body.Close()
   if err != nil {
     cc.Log.MayBeFatal(
-      "Could not read the body of the heart beat response",
+      "Could not read the body of the client connection response",
+       err,
+    )
+    return replyBytes
+  }
+
+  return respBody
+}
+
+func (cc CC) SendJsonMessage(baseUrl, url, method string, jsonBytes []byte) []byte {
+
+  replyBytes := []byte{}
+
+  ccReq, err := http.NewRequest(
+    method,
+    baseUrl + url,
+    bytes.NewReader(jsonBytes),
+  )
+  if err != nil {
+    cc.Log.MayBeError("Could not create client connection request", err)
+    return replyBytes
+  }
+
+  ccReq.Header.Add("Accept", "application/json")
+
+  resp, err := cc.Client.Do(ccReq)
+  if err != nil {
+    cc.Log.MayBeError(
+      "Could not send client connection request to the Nursery: "+baseUrl,
+      err,
+    )
+    if resp != nil {
+      cc.Log.Logf("Response code: %s / %s", resp.Status, resp.Proto)
+    }
+    return replyBytes
+  }
+  defer resp.Body.Close()
+
+  respBody, err := ioutil.ReadAll(resp.Body)
+  resp.Body.Close()
+  if err != nil {
+    cc.Log.MayBeFatal(
+      "Could not read the body of the client connection response",
        err,
     )
     return replyBytes

@@ -232,15 +232,13 @@ func AddControlInterface(
       ws.Log.Logf("control stateChange: [%s]", stateChange)
       interfaceImpl.ActionChangeNurseryState(stateChange)
 
-// TODO the action might fail since we should not honour a "kill" until
-// there are not processes left... how do we deal with this case?
-
       fedMap := interfaceImpl.ResponseListFederationStatusJSON()
       ws.Log.Json("Control Reply: ", "fedMap", fedMap)
       if ws.RepliedInJson(w, r, fedMap) { return }
-      fedMapTemp := interfaceImpl.ResponseListFederationStatusTemplate()
-      err := fedMapTemp.Execute(w, fedMap)
-      ws.Log.MayBeError("Could not execute fedMapTemplate", err)
+//      fedMapTemp := interfaceImpl.ResponseListFederationStatusTemplate()
+//      err := fedMapTemp.Execute(w, fedMap)
+//      ws.Log.MayBeError("Could not execute fedMapTemplate", err)
+      http.Redirect(w, r, "/control", http.StatusSeeOther)
     },
   )
   ws.Log.MayBeError("Could not add PUT handler for [/control]", err)
@@ -275,15 +273,13 @@ func AddControlInterface(
       ws.Log.Logf("control/all stateChange: [%s]", stateChange)
       interfaceImpl.ActionChangeFederationState(stateChange)
 
-// TODO the action might fail since we should not honour a "kill" until
-// there are not processes left... how do we deal with this case?
-
       fedMap := interfaceImpl.ResponseListFederationStatusJSON()
       ws.Log.Json("Control Reply: ", "fedMap", fedMap)
       if ws.RepliedInJson(w, r, fedMap) { return }
-      fedMapTemp := interfaceImpl.ResponseListFederationStatusTemplate()
-      err := fedMapTemp.Execute(w, fedMap)
-      ws.Log.MayBeError("Could not execute fedMapTemplate", err)
+//      fedMapTemp := interfaceImpl.ResponseListFederationStatusTemplate()
+//      err := fedMapTemp.Execute(w, fedMap)
+//      ws.Log.MayBeError("Could not execute fedMapTemplate", err)
+      http.Redirect(w, r, "/control", http.StatusSeeOther)
     },
   )
   ws.Log.MayBeError("Could not add PUT handler for [/control/all]", err)

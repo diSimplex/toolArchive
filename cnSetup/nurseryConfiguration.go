@@ -18,6 +18,7 @@
 package main
 
 import (
+  "fmt"
   "os"
   "strconv"
   "strings"
@@ -57,6 +58,8 @@ func normalizeNurseryConfig(nursery *Nursery, defaults Nursery) {
 func writeNurseryConfiguration(theNursery *Nursery, primaryUrl string) {
   theNursery.Primary_Url = primaryUrl
 
+  fmt.Printf("\n\nCreating configuration for the [%s] Nursery\n", theNursery.Name)
+
   yamlTemplateStr := `
 # This is the configuration for the {{.Name}} Nursery
 #
@@ -75,7 +78,6 @@ ca_cert_path: "{{.Ca_Cert_Path}}"
 cert_path:    "{{.Cert_Path}}"
 key_path:     "{{.Key_Path}}"
 `
-
 
   yamlTemplate, err := template.New("yamlTemplate").Parse(yamlTemplateStr)
   setupMayBeFatal("Could not parse the yaml template", err)

@@ -44,13 +44,41 @@ func createUserCertificate(theUser string, userNum int) {
     log.Printf("cnConfig(WARNING): no user name specified for a user, skipping user[%d]\n", userNum)
     return
   }
-  fmt.Printf("\n\nCreating configuration for the user [%s]\n", theUser)
+
+  uDir := "users/"+theUser
+  os.MkdirAll(uDir, 0755)
+  uPath := uDir+"/"+ strings.ReplaceAll(theUser, ".", "-")
+
+  uCaCertificateFileName := uPath+"-ca-crt.pem"
+  caCertFile, caCertErr := os.Open(uCaCertificateFileName)
+
+  uCertificateFileName := uPath+"-crt.pem"
+  certFile, certErr := os.Open(uCertificateFileName)
+
+  uPrivateKeyFileName := uPath+"-key.pem"
+  keyFile, keyErr := os.Open(uPrivateKeyFileName)
+
+  uPKCS12FileName := uPath+"-pkcs12.p12"
+  pkcsFile, pkcsErr := os.Open(uPKCS12FileName)
+
+  if (caCertErr == nil && certErr == nil && keyErr == nil && pkcsErr == nil) {
+    fmt.Printf("\n\nCertificate files for the user [%s] already exist\n", theUser)
+    fmt.Print( "  not recreating them.\n")
+    caCertFile.Close()
+    certFile.Close()
+    keyFile.Close()
+    pkcsFile.Close()
+    return
+  }
+
+  fmt.Printf("\n\nCreating certificate files for the user [%s]\n", theUser)
 
   uCert := &x509.Certificate {
     // we need to use DIFFERENT serial numbers for each of CA (1<<32),
-    //  C/S (1<<33) and User (1<<34)
+    //  C/S  ((1<<5 + nurseryNum)<<33) and
+    //  User ((2<<5 + userNum)<<33)
     SerialNumber: big.NewInt(
-      int64((1+userNum)<<34) |
+      int64(2<<5 + userNum)<<33 |
       int64(config.Certificate_Authority.Serial_Number),
     ),    SignatureAlgorithm: x509.SHA512WithRSA,
     Subject: pkix.Name {
@@ -86,10 +114,6 @@ func createUserCertificate(theUser string, userNum int) {
   uSubject := "Subject: ConTeXt Nursery " + config.Federation_Name + " User Certificate for user ["+theUser+"]"
   uDate    := "Date:    "+time.Now().String()+"\n"
 
-  uDir := "users/"+theUser
-  os.MkdirAll(uDir, 0755)
-  uPath := uDir+"/"+ strings.ReplaceAll(theUser, ".", "-")
-
   caPEM := new(bytes.Buffer)
   caPEM.WriteString("\n")
   caPEM.WriteString(uSubject + " (CA)\n")
@@ -98,7 +122,6 @@ func createUserCertificate(theUser string, userNum int) {
     Type:  "CERTIFICATE",
     Bytes: caCert.Raw,
   })
-  uCaCertificateFileName := uPath+"-ca-crt.pem"
   err = ioutil.WriteFile(uCaCertificateFileName, caPEM.Bytes(), 0644)
   setupMayBeFatal("could not write the ["+uCaCertificateFileName+"] file", err)
 
@@ -120,7 +143,6 @@ func createUserCertificate(theUser string, userNum int) {
 //    Type:  "CERTIFICATE",
 //    Bytes: caCert.Raw,
 //  })
-  uCertificateFileName := uPath+"-crt.pem"
   err = ioutil.WriteFile(uCertificateFileName, uPEM.Bytes(), 0644)
   setupMayBeFatal("could not write the ["+uCertificateFileName+"] file", err)
 
@@ -132,7 +154,6 @@ func createUserCertificate(theUser string, userNum int) {
     Type: "RSA PRIVATE KEY",
     Bytes: x509.MarshalPKCS1PrivateKey(uPrivateKey),
   })
-  uPrivateKeyFileName := uPath+"-key.pem"
   err = ioutil.WriteFile(uPrivateKeyFileName, uPrivateKeyPEM.Bytes(), 0600)
   setupMayBeFatal("could not write the ["+uPrivateKeyFileName+"] file", err)
 
@@ -154,12 +175,10 @@ func createUserCertificate(theUser string, userNum int) {
 
   thePassword, err := password.Generate(8, 2, 0, false, false)
   setupMayBeFatal("Could not generate a password", err)
-  userPasswords = append(userPasswords, UserPassword{ theUser, thePassword })
+  userPasswords[theUser] = thePassword
 
   err = os.Setenv("OPENSSL_PASSWORD", thePassword)
   setupMayBeFatal("Could not set the OPENSSL_PASSWORD environment variable", err)
-
-  uPKCS12FileName := uPath+"-pkcs12.p12"
 
   cmd := exec.Command("openssl", "pkcs12", "-export",
     "-out", uPKCS12FileName,

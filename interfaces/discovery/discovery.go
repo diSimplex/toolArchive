@@ -212,13 +212,8 @@ func AddDiscoveryInterface(
       interfaceImpl.ActionUpdateNurseryInfo(ni)
 
       niMap := interfaceImpl.ResponseListNurseryInformationJSON()
-      jsonBytes, err := json.Marshal(niMap)
-      if err != nil {
-        ws.Log.MayBeError("Could not json.marshal value in repliedInJson", err)
-        jsonBytes = []byte{}
-      }
-      ws.Log.Log("heartBeat Reply: "+string(jsonBytes))
-      w.Write(jsonBytes)
+      if ws.RepliedInJson(w, r, niMap) { return }
+      http.Redirect(w,r, "/hearBeat", http.StatusSeeOther)
     },
   )
   ws.Log.MayBeError("Could not add POST handler for [/heartbeat]", err)

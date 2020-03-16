@@ -18,12 +18,15 @@
 package main
 
 import (
+  "fmt"
   "os"
   "strings"
   "text/template"
 )
 
 func writeUserConfiguration(user User, defaults User, primaryUrl string) {
+
+  fmt.Printf("\n\nCreating configuration file for the user [%s]\n", user)
 
   user.Primary_Url = primaryUrl
 

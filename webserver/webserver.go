@@ -120,6 +120,7 @@ func (ws *WS) RepliedInJson(
   replyInJson := false
   for _, anAcceptValue := range r.Header["Accept"] {
     if strings.Contains(strings.ToLower(anAcceptValue), "json") {
+      ws.Log.Logf("Replying in JSON [%s]", strings.Join(r.Header["Accept"], "|"))
       replyInJson = true
       break
     }
@@ -340,7 +341,7 @@ func (ws *WS) RunWebServer() {
 // then use the route's xxxHandler associated with the request method.
 //
 func (ws *WS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-  ws.Log.Logf("url: [%s] method: [%s]", r.URL.Path, r.Method)
+  ws.Log.Logf("url: [%s][%s] method: [%s]", r.URL.Path, r.URL.RawQuery, r.Method)
 
   aRoute, _ := ws.FindRoute(r.URL.Path)
 
@@ -356,7 +357,12 @@ func (ws *WS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  switch r.Method {
+  method := r.Method
+  query  := r.URL.Query()
+  queryMethod := strings.Join(query["method"], "")
+  if queryMethod != "" { method = strings.ToUpper(queryMethod) }
+
+  switch method {
     case http.MethodGet    : if aRoute.GetHandler != nil {
       aRoute.GetHandler(w, r) ; return
     }
@@ -372,7 +378,14 @@ func (ws *WS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     case http.MethodDelete : if aRoute.DeleteHandler != nil {
       aRoute.DeleteHandler(w, r) ; return
     }
-    default                : http.NotFound(w, r) ; return
+    default                :
+      ws.Log.Logf("Incorrect RESTful HTTP Method [%s]", method)
+      http.Error(
+        w,
+        fmt.Sprintf("Incorrect RESTful HTTP Method [%s]", method),
+        http.StatusNotFound,
+      )
+     return
   }
   ws.Log.Logf(
     "No RESTful HTTP Handler found for [%s] using [%s]",

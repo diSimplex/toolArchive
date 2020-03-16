@@ -43,7 +43,7 @@ func CreateCNInfoMap() *CNInfoMap {
   return &infoMap
 }
 
-type ANurseryAction func(string)
+type ANurseryAction func(string, discovery.NurseryInfo)
 
 func (cniMap *CNInfoMap) DoToAllOthers(anAction ANurseryAction) {
   lConfig := getConfig()
@@ -53,7 +53,16 @@ func (cniMap *CNInfoMap) DoToAllOthers(anAction ANurseryAction) {
 
   for aKey, aValue := range cniMap.NI {
     if aKey == lConfig.Name { continue } // do not do this to myself!
-    anAction(aValue.Base_Url)
+    anAction(aKey, aValue)
+  }
+}
+
+func (cniMap *CNInfoMap) DoToAll(anAction ANurseryAction) {
+  cniMap.Mutex.Lock()
+  defer cniMap.Mutex.Unlock()
+
+  for aKey, aValue := range cniMap.NI {
+    anAction(aKey, aValue)
   }
 }
 

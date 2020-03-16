@@ -32,11 +32,12 @@ func sendPeriodicHeartBeats(cc *clientConnection.CC) {
 
   for {
     time.Sleep(time.Duration(rand.Int63n(10)) * time.Second)
+    cnLog.Logf("\n\n\nheartBeat state: [%s]\n\n\n", cnState.GetState())
     ni := discovery.NurseryInfo{
       Name: lConfig.Name,
       Port: lConfig.Port,
       Base_Url: lConfig.Base_Url,
-      State: "up",
+      State: cnState.GetState(),
       Processes: 1,
     }
 

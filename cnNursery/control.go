@@ -21,6 +21,7 @@ import (
 //  "fmt"
   "github.com/diSimplex/ConTeXtNursery/clientConnection"
   "github.com/diSimplex/ConTeXtNursery/interfaces/control"
+  "github.com/diSimplex/ConTeXtNursery/interfaces/discovery"
   "github.com/diSimplex/ConTeXtNursery/webserver"
   "html/template"
 //  "io/ioutil"
@@ -41,30 +42,74 @@ type CNState struct {
 }
 
 func CreateCNState(ws *webserver.WS, cc *clientConnection.CC) *CNState {
-  return &CNState{Ws: ws, Cc: cc}
+  lConfig := getConfig()
+  return &CNState{
+    State: control.NurseryState{
+      Base_Url:     lConfig.Base_Url,
+      Url_Modifier: "",
+      State:        "up",
+      Processes:    0,
+    },
+    Ws: ws,
+    Cc: cc,
+  }
+}
+
+func (cnState *CNState) SetState(newState string) {
+  cnState.Mutex.Lock()
+  defer cnState.Mutex.Unlock()
+
+  cnState.State.State = newState // this is too permissive! but works for now.
+}
+
+func (cnState *CNState) GetState() string {
+  cnState.Mutex.RLock()
+  defer cnState.Mutex.RUnlock()
+
+  return cnState.State.State
 }
 
 func (cnState *CNState) ActionChangeNurseryState(stateChange string) {
   switch stateChange {
-    case control.StateUp     : cnState.State.State = stateChange
-    case control.StatePaused : cnState.State.State = stateChange
-    case control.StateDown   : cnState.State.State = stateChange
-    case control.StateKill   : cnState.State.State = stateChange
+    case control.StateUp     : cnState.SetState(stateChange)
+    case control.StatePaused : cnState.SetState(stateChange)
+    case control.StateDown   : cnState.SetState(stateChange)
+    case control.StateKill   : cnState.SetState(stateChange)
       cnState.Ws.Server.Shutdown(context.Background())
+    default                  :
+      cnLog.Logf("Ignoring incorrect state change: [%s]", stateChange)
   }
 }
 
 func (cnState *CNState) ActionChangeFederationState(stateChange string) {
-  cnInfoMap.DoToAllOthers(func (baseUrl string) {
-    control.SendNurseryControlMessage(baseUrl, stateChange, cnState.Cc)
+  cnInfoMap.DoToAllOthers(func (name string, ni discovery.NurseryInfo) {
+    control.SendNurseryControlMessage(ni.Base_Url, stateChange, cnState.Cc)
   })
   lConfig := getConfig()
   control.SendNurseryControlMessage(lConfig.Base_Url, stateChange, cnState.Cc)
 }
 
 func (cnState *CNState) ResponseListFederationStatusJSON() *control.FederationStateMap {
-
-  return nil
+  lConfig         := getConfig()
+  fedStateMap     := control.FederationStateMap{}
+  fedNumProcesses := uint(0)
+  cnInfoMap.DoToAll(func(name string, ni discovery.NurseryInfo) {
+    ns := control.NurseryState{
+      Base_Url:     ni.Base_Url,
+      Url_Modifier: "",
+      State:        ni.State,
+      Processes:    ni.Processes,
+    }
+    fedNumProcesses = fedNumProcesses + ni.Processes
+    fedStateMap[name] = ns
+  })
+  fedStateMap["Federation"] = control.NurseryState{
+    Base_Url:     lConfig.Primary_Url,
+    Url_Modifier: "/all",
+    State:        control.StateUp,
+    Processes:    fedNumProcesses,
+  }
+  return &fedStateMap
 }
 
 func (cnState *CNState) ResponseListFederationStatusTemplate() *template.Template {
@@ -73,35 +118,44 @@ func (cnState *CNState) ResponseListFederationStatusTemplate() *template.Templat
     <h1>Federation Control Information</h1>
     <table>
       <tr>
+        <th colspan=2></th>
+        <th colspan=4>State</th>
+      </tr>
+      <tr>
+        <th colspan=2></th>
+        <th colspan=4><hr style="margin-top:0em;margin-bottom:0em;" /></th>
+      </tr>
+      <tr>
         <th>Name</th>
-        <th>Port</th>
-        <th>State</th>
         <th>Processes</th>
-        <th>Cores</th>
-        <th>Speed Mhz</th>
-        <th>Mem Total</th>
-        <th>Mem Used</th>
-        <th>Swap Total</th>
-        <th>Swap Used</th>
-        <th>Load 1 min</th>
-        <th>Load 5 min</th>
-        <th>Load 15 min</th>
+        <th>Current</th>
+        <th>Up</th>
+        <th>Pause</th>
+        <th>Kill</th>
       </tr>
 {{ range $key, $value := . }}
       <tr>
-        <td>{{$value.Name}}</td>
-        <td>{{$value.Port}}</td>
-        <td>{{$value.State}}</td>
+        <td><a href="{{$value.Base_Url}}">{{$key}}</a></td>
         <td>{{$value.Processes}}</td>
-        <td>{{$value.Cores}}</td>
-        <td>{{$value.Speed_Mhz}}</td>
-        <td>{{$value.Memory.Total}}</td>
-        <td>{{$value.Memory.Used}}</td>
-        <td>{{$value.Swap.Total}}</td>
-        <td>{{$value.Swap.Used}}</td>
-        <td>{{$value.Load.Load1}}</td>
-        <td>{{$value.Load.Load5}}</td>
-        <td>{{$value.Load.Load15}}</td>
+        <td>{{$value.State}}</td>
+        <td>
+          <form method="post"
+           action="{{$value.Base_Url}}/control{{$value.Url_Modifier}}/up?method=put">
+            <input type="submit" value="Up" />
+          </form>
+        </td>
+        <td>
+          <form method="post"
+           action="{{$value.Base_Url}}/control{{$value.Url_Modifier}}/paused?method=put">
+            <input type="submit" value="Pause" />
+          </form>
+        </td>
+        <td>
+          <form method="post"
+           action="{{$value.Base_Url}}/control{{$value.Url_Modifier}}/kill?method=put">
+            <input type="submit" value="Kill" />
+          </form>
+        </td>
       </tr>
 {{ end }}
     </table>

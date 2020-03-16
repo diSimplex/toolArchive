@@ -34,8 +34,10 @@ import (
 // Records the current control state of a given Nursery.
 //
 type NurseryState struct {
-  State     string
-  Processes uint
+  Base_Url     string
+  Url_Modifier string
+  State        string
+  Processes    uint
 }
 
 // Records the current control state of the federation of ConTeXt
@@ -181,7 +183,8 @@ func AddControlInterface(
   ws *webserver.WS,
   interfaceImpl ControlImpl,
 ) {
-  ws.DescribeRoute("/control", "???control description???")
+  ws.DescribeRoute("/control",     "???control description???")
+  ws.DescribeRoute("/control/all", "???control/all description???")
 
 //  interface:
 //    - url: /control
@@ -233,13 +236,11 @@ func AddControlInterface(
 // there are not processes left... how do we deal with this case?
 
       fedMap := interfaceImpl.ResponseListFederationStatusJSON()
-      jsonBytes, err := json.Marshal(fedMap)
-      if err != nil {
-        ws.Log.MayBeError("Could not json.marshal value in repliedInJson", err)
-        jsonBytes = []byte{}
-      }
-      ws.Log.Log("Control Reply: "+string(jsonBytes))
-      w.Write(jsonBytes)
+      ws.Log.Json("Control Reply: ", "fedMap", fedMap)
+      if ws.RepliedInJson(w, r, fedMap) { return }
+      fedMapTemp := interfaceImpl.ResponseListFederationStatusTemplate()
+      err := fedMapTemp.Execute(w, fedMap)
+      ws.Log.MayBeError("Could not execute fedMapTemplate", err)
     },
   )
   ws.Log.MayBeError("Could not add PUT handler for [/control]", err)
@@ -278,13 +279,11 @@ func AddControlInterface(
 // there are not processes left... how do we deal with this case?
 
       fedMap := interfaceImpl.ResponseListFederationStatusJSON()
-      jsonBytes, err := json.Marshal(fedMap)
-      if err != nil {
-        ws.Log.MayBeError("Could not json.marshal value in repliedInJson", err)
-        jsonBytes = []byte{}
-      }
-      ws.Log.Log("Control/all Reply: "+string(jsonBytes))
-      w.Write(jsonBytes)
+      ws.Log.Json("Control Reply: ", "fedMap", fedMap)
+      if ws.RepliedInJson(w, r, fedMap) { return }
+      fedMapTemp := interfaceImpl.ResponseListFederationStatusTemplate()
+      err := fedMapTemp.Execute(w, fedMap)
+      ws.Log.MayBeError("Could not execute fedMapTemplate", err)
     },
   )
   ws.Log.MayBeError("Could not add PUT handler for [/control/all]", err)

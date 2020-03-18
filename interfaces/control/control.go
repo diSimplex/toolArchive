@@ -131,7 +131,7 @@ func SendNurseryControlMessage(
   return &fedMap
 }
 
-// Add the Discovery RESTful HTTP interface to the current webserver.
+// Add the Control RESTful HTTP interface to the current webserver.
 //
 //  interface:
 //    - url: /control

@@ -31,7 +31,8 @@ interface:
   - url: /action/<anAction>
     method: GET
     action: None
-    response: List log files associated with this action
+    response: List the available action arguments and environment variables.
+    jsonResp: ActionConfig
 
   - url: /action/<anAction>
     method: POST
@@ -39,19 +40,46 @@ interface:
     credentials: CommonName of the Client X509 certificate
     action: Runs the <anAction>
     response: |
-      Redirect to log browser which longPolls the log file produced by this 
-      action. (Note we could use mithril.js in an AJAX "pull" model to 
-      ensure the user does not see the whole page refresh).
+      Redirect to output file browser which longPolls the log file produced 
+      by this action. (Note we could use mithril.js in an AJAX "pull" model 
+      to ensure the user does not see the whole page refresh).
 
-  - url: /action/<anAction>/<aRun>
+  - url: /action/output/<anAction>
+    method: GET
+    action: None
+    response: List of available runs associated with this action
+    jsonResp: []string
+
+  - url: /action/output/<anAction>/<aRun>
     method: GET
     action: None
     response: |
-      Browse the log files associated with <aRun> of the <anAction>
+      List the output files associated with <aRun> of the <anAction>.
+    jsonResp: []string
 
-  - url: /action/clear/<anAction>/<aRun>
+  - url: /action/output/<anAction>/<aRun>/<outputFile>
     method: GET
+    action: None
+    response: |
+      Browse the <outputFile> associated with <aRun> of the <anAction>.
+
+  - url: /action/output/<anAction>
+    method: DELETE
     action: |
-      Clears the associated <aRun> of the <anAction> (or all runs if no 
-      <aRun> is provided)
-    response: List log files associated with this action
+      Deletes all associated <aRun>s of the <anAction>
+    response: List (remaining) runs associated with this action
+    jsonResp: []string
+
+  - url: /action/output/<anAction>/<aRun>
+    method: DELETE
+    action: |
+      Clears the associated <aRun> of the <anAction>
+    response: List (remaining) runs associated with this action
+    jsonResp: []string
+
+  - url: /action/output/<anAction>/<aRun>/<outputFile>
+    method: DELETE
+    action: |
+      Deletes the <outputFile> associated with <aRun> of the <anAction>.
+    response: List (remaining) runs associated with this action
+    jsonResp: []string

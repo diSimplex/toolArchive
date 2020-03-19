@@ -24,6 +24,7 @@ import (
   "fmt"
   "github.com/diSimplex/ConTeXtNursery/logger"
   "html/template"
+  "io"
   "io/ioutil"
   "net"
   "net/http"
@@ -135,6 +136,21 @@ func (ws *WS) RepliedInJson(
     w.Write(jsonBytes)
   }
   return replyInJson
+}
+
+func (ws *WS) RepliedAsRawFile(
+  w http.ResponseWriter,
+  r *http.Request,
+  file io.Reader,
+  mimeType string,
+) bool {
+  // TODO
+  return false
+}
+
+func (ws *WS) ReadLines(file io.Reader) []string {
+  // TODO
+  return []string{}
 }
 
 // The data required to describe how much of a partial route has been found

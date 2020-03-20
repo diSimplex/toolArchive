@@ -47,24 +47,31 @@ type ActionConfig struct {
   Envs EnvVars
 }
 
-type ArgDesc struct {
+type ArgumentDesc struct {
   key  string
   desc string
 }
 
-type ArgumentDescs []string
+type ArgumentDescs []ArgumentDesc
 
-type EnvDesc struct {
+type EnvironmentDesc struct {
   key  string
   desc string
 }
 
-type EnvDescs []EnvDesc
+type EnvironmentDescs []EnvironmentDesc
 
 type ActionDescription struct {
-  Arg ArgumentDescs
-  Env EnvDescs
+  Name string
+  Desc string
+  Args ArgumentDescs
+  Envs EnvironmentDescs
 }
+
+// A map of currently registered actions together with a brief description 
+// of each action.
+//
+type ActionList map[string]string
 
 //////////////////////////////////////////////////////////////////////
 // Action interface functions
@@ -72,8 +79,15 @@ type ActionDescription struct {
 
 type ActionImpl interface {
 
-  ResponseListActionsJSON() *ActionDescription
+  // Returns the mapping of the currently registered actions
+  // together with a brief description of each action.
+  //
+  ResponseListActionsJSON() ActionList
 
+  // Returns the http.Template used to formate an HTML response listing the 
+  // currently registered actions together with a brief description of each 
+  // action. 
+  //
   ResponseListActionsTemplate() *template.Template
 
   ActionRunAction(string, *ActionConfig) string

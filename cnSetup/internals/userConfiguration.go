@@ -15,7 +15,7 @@
 // This code has been inspired by: Shane Utt's excellent article:
 //   https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
 
-package main
+package CNSetup
 
 import (
   "fmt"

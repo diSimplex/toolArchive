@@ -12,14 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file collects all of the globals required for the cnNursery process.
-//
-// Since cnNursery makes essential use of multi-threading, we need to 
-// ensure all globals are thread safe. To do this we make liberal use
-// of the sync.RWMutexes, one for each global.
-//
-
-package main
+package CNNurseries
 
 import (
   "github.com/diSimplex/ConTeXtNursery/interfaces/discovery"
@@ -28,6 +21,12 @@ import (
   "sync"
 )
 
+// The CNInfoMap collects all of the globals required for the cnNursery process.
+//
+// Since cnNursery makes essential use of multi-threading, we need to 
+// ensure all globals are thread safe. To do this we make liberal use
+// of the sync.RWMutexes, one for each global.
+//
 type CNInfoMap struct {
   IsPrimary bool
   Mutex     sync.RWMutex

@@ -52,6 +52,8 @@ type Nursery struct {
   Base_Url     string
   Primary_Url  string
   Config_Path  string
+  Work_Dir     string
+  Actions_Dir  string
 }
 
 type User struct {
@@ -124,6 +126,8 @@ var (
       "https://localhost:8989", // Base_Url
       "",                       // Primary_Url
       "",                       // Config_Path
+      "workDir",                // Word_Dir
+      "actionsDir",             // Actions_Dir
     }
     userDefaults = User{
       "", // Name
@@ -160,15 +164,6 @@ var (
     config.Federation_Name = "ConTeXt Nurseries"
   }
 
-  if showConfig {
-    configStr, _ := json.MarshalIndent(config, "", "  ")
-    fmt.Print(string(configStr))
-    os.Exit(0)
-  }
-
-  loadCA()
-
-
   // locate the primary Nursery
   normalizeNurseryConfig(&config.Nursery_Defaults, nurseryDefaults)
   primaryNursery := &config.Nurseries[0]
@@ -181,6 +176,14 @@ var (
     normalizeNurseryConfig(&config.Nurseries[i], config.Nursery_Defaults)
   }
   primaryNurseryUrl := computePrimaryNurseryUrl(primaryNursery)
+
+  if showConfig {
+    configStr, _ := json.MarshalIndent(config, "", "  ")
+    fmt.Print(string(configStr))
+    os.Exit(0)
+  }
+
+  loadCA()
 
   // now create each Nursery's certificates as well as configuration
   for i, aNursery := range config.Nurseries {

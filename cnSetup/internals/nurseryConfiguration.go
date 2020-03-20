@@ -15,7 +15,7 @@
 // This code has been inspired by: Shane Utt's excellent article:
 //   https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
 
-package main
+package CNSetup
 
 import (
   "fmt"
@@ -36,6 +36,8 @@ func normalizeNurseryConfig(nursery *Nursery, defaults Nursery) {
   if nursery.Ca_Cert_Path == "" { nursery.Ca_Cert_Path = defaults.Ca_Cert_Path }
   if nursery.Cert_Path    == "" { nursery.Cert_Path    = defaults.Cert_Path }
   if nursery.Key_Path     == "" { nursery.Key_Path     = defaults.Key_Path }
+  if nursery.Work_Dir     == "" { nursery.Work_Dir     = defaults.Work_Dir }
+  if nursery.Actions_Dir  == "" { nursery.Actions_Dir  = defaults.Actions_Dir }
 
   if nursery.Host == "" { nursery.Host = defaults.Host }
   if nursery.Host != "" {
@@ -77,6 +79,8 @@ primary_url:  "{{.Primary_Url}}"
 ca_cert_path: "{{.Ca_Cert_Path}}"
 cert_path:    "{{.Cert_Path}}"
 key_path:     "{{.Key_Path}}"
+work_dir:     "{{.Work_Dir}}"
+actions_dir:  "{{.Actions_Dir}}"
 `
 
   yamlTemplate, err := template.New("yamlTemplate").Parse(yamlTemplateStr)

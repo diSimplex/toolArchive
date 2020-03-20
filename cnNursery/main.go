@@ -20,6 +20,7 @@ import (
   "flag"
   "fmt"
   "github.com/diSimplex/ConTeXtNursery/clientConnection"
+  "github.com/diSimplex/ConTeXtNursery/cnNursery/internals"
   "github.com/diSimplex/ConTeXtNursery/interfaces/control"
   "github.com/diSimplex/ConTeXtNursery/interfaces/discovery"
   "github.com/diSimplex/ConTeXtNursery/logger"
@@ -33,8 +34,8 @@ var configFileName string
 var showConfig     bool
 var serverCert     tls.Certificate
 var caCertPool     *x509.CertPool
-var cnInfoMap      *CNInfoMap
-var cnState        *CNState
+var cnInfoMap      *internals.CNInfoMap
+var cnState        *internals.CNState
 
 var cnLog = logger.CreateLogger("cnNursery")
 

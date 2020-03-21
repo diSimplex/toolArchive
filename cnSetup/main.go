@@ -19,10 +19,9 @@ package main
 
 import (
   "bufio"
-  "encoding/json"
   "flag"
   "fmt"
-  "github.com/jinzhu/configor"
+
   "log"
   "os"
   "time"
@@ -34,70 +33,10 @@ import (
 //  "io/ioutil"
 )
 
-//////////////////////////
-// Configuration variables
-//
-
-type Nursery struct {
-  Name         string
-  Host         string
-  Hosts        []string
-  Interface    string
-  Port         uint
-  Html_Dir     string
-  Ca_Cert_Path string
-  Cert_Path    string
-  Key_Path     string
-  Is_Primary   bool
-  Base_Url     string
-  Primary_Url  string
-  Config_Path  string
-  Work_Dir     string
-  Actions_Dir  string
-}
-
-type User struct {
-  Name         string
-  Ca_Cert_Path string
-  Cert_Path    string
-  Key_Path     string
-  Primary_Url  string
-  Config_Path  string
-}
-
-var config = struct {
-
-  Federation_Name string `default:"nurseries"`
-
-  Key_Size uint `default:"4096"`
-
-  Certificate_Authority struct {
-    Serial_Number  uint
-    Organization   string
-    Country        string
-    Province       string
-    Locality       string
-    Street_Address string
-    Postal_Code    string
-    Email_Address  string
-    Common_Name    string
-
-    Valid_For struct {
-      Years  uint `default:"10"`
-      Months uint `default:"0"`
-      Days   uint `default:"0"`
-    }
-  }
-
-  Nursery_Defaults Nursery
-
-  Nurseries []Nursery
-
-  Users []User
-}{}
 
 var userPasswords = map[string]string{}
 
+var createCA       bool
 var configFileName string
 var showConfig     bool
 
@@ -111,32 +50,10 @@ func setupMayBeFatal(logMessage string, err error) {
 }
 
 func main() {
-var (
-    nurseryDefaults = Nursery{
-      "",                       // Name
-      "",                       // Host
-      []string{},               // Hosts
-      "0.0.0.0",                // Interface
-      8989,                     // Port
-      "/var/www/html",          // Html_Dir
-      "",                       // Ca_Cert_Path
-      "",                       // Cert_Path
-      "",                       // Key_Path
-      false,                    // Is_Primary
-      "https://localhost:8989", // Base_Url
-      "",                       // Primary_Url
-      "",                       // Config_Path
-      "workDir",                // Word_Dir
-      "actionsDir",             // Actions_Dir
-    }
-    userDefaults = User{
-      "", // Name
-      "", // Ca_Cert_Path
-      "", // Cert_Path
-      "", // Key_Path
-      "", // Primary_Url
-      "", // Config_Path
-    }
+  var (
+    wg sync.WaitGroup
+  
+
   )
 
   const (
@@ -152,37 +69,10 @@ var (
   flag.BoolVar(&showConfig, "s", showConfigDefault, showConfigUsage)
   flag.Parse()
 
-  configor.Load(&config, configFileName)
+  config := LoadConfiguration(configFileName, showConfig)
 
-  // make sure the Serial_Number is constantly increasing...
-  //
-  if config.Certificate_Authority.Serial_Number == 0 {
-    config.Certificate_Authority.Serial_Number = uint(time.Now().Unix())
-  }
-
-  if config.Federation_Name == "" {
-    config.Federation_Name = "ConTeXt Nurseries"
-  }
-
-  // locate the primary Nursery
-  normalizeNurseryConfig(&config.Nursery_Defaults, nurseryDefaults)
-  primaryNursery := &config.Nurseries[0]
-  for i, _ := range config.Nurseries {
-    if config.Nurseries[i].Is_Primary {
-      if ! primaryNursery.Is_Primary {
-         primaryNursery = &config.Nurseries[i]
-      }
-    }
-    normalizeNurseryConfig(&config.Nurseries[i], config.Nursery_Defaults)
-  }
-  primaryNurseryUrl := computePrimaryNurseryUrl(primaryNursery)
-
-  if showConfig {
-    configStr, _ := json.MarshalIndent(config, "", "  ")
-    fmt.Print(string(configStr))
-    os.Exit(0)
-  }
-
+  wg.Add(1)
+  
   loadCA()
 
   // now create each Nursery's certificates as well as configuration
@@ -222,4 +112,7 @@ var (
   os.Chmod("users/passwords", 0600)
   fmt.Printf("\nThe automatically generated passwords for each user's PKCS#12 file\n")
   fmt.Printf("  can be found in the file [users/passwords]\n\n")
+  
+  wg.Add(-1)
+  wg.Wait()
 }

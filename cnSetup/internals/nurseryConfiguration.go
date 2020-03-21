@@ -19,17 +19,62 @@ package CNSetup
 
 import (
   "fmt"
+  "github.com/diSimplex/ConTeXtNursery/logger"
   "os"
   "strconv"
   "strings"
   "text/template"
 )
 
-func computePrimaryNurseryUrl(pNursery *Nursery) string {
-  return "https://"+pNursery.Hosts[0]+":"+strconv.Itoa(int(pNursery.Port))
+type Nursery struct {
+  Name          string
+  Host          string
+  Hosts         []string
+  Interface     string
+  Port          uint
+  Html_Dir      string
+  Ca_Cert_Path  string
+  Cert_Path     string
+  Key_Path      string
+  Is_Primary    bool
+  Base_Url      string
+  Primary_Url   string
+  Config_Path   string
+  Work_Dir      string
+  Actions_Dir   string
+  Serial_Number int64
 }
 
-func normalizeNurseryConfig(nursery *Nursery, defaults Nursery) {
+var (
+  NurseryDefaults = Nursery{
+    "",                       // Name
+    "",                       // Host
+    []string{},               // Hosts
+    "0.0.0.0",                // Interface
+    8989,                     // Port
+    "/var/www/html",          // Html_Dir
+    "",                       // Ca_Cert_Path
+    "",                       // Cert_Path
+    "",                       // Key_Path
+    false,                    // Is_Primary
+    "https://localhost:8989", // Base_Url
+    "",                       // Primary_Url
+    "",                       // Config_Path
+    "workDir",                // Word_Dir
+    "actionsDir",             // Actions_Dir
+    0,                        // Serial_Number
+  }
+)
+
+func (nursery *Nursery) ComputeUrl() string {
+  return "https://"+nursery.Hosts[0]+":"+strconv.Itoa(int(nursery.Port))
+}
+
+func (nursery *Nursery) NormalizeConfiguration(
+  nurseryNumber int,
+  defaults     *Nursery,
+  primaryUrl    string,
+) {
   if nursery.Interface    == "" { nursery.Interface    = defaults.Interface }
   if nursery.Port         == 0  { nursery.Port         = defaults.Port }
   if nursery.Html_Dir     == "" { nursery.Html_Dir     = defaults.Html_Dir }
@@ -52,15 +97,26 @@ func normalizeNurseryConfig(nursery *Nursery, defaults Nursery) {
     if nursery.Key_Path     == "" { nursery.Key_Path     = nPathPrefix+"-key.pem" }
     if nursery.Config_Path  == "" { nursery.Config_Path  = nPathPrefix+"-config.yaml" }
     if nursery.Base_Url     == "" { 
-      nursery.Base_Url  = "https://"+nursery.Name+":"+strconv.Itoa(int(nursery.Port))
+      nursery.Base_Url  = nursery.ComputeUrl()
     }
+  }
+  
+  // we need to use DIFFERENT serial numbers for each of CA (1<<32),
+  //  C/S  ((1<<5 + nurseryNum)<<33) and
+  //  User ((2<<5 + userNum)<<33)
+  //
+  if nursery.Serial_Number == 0 {
+    nursery.Serial_Number = int64(1<<5 + nurseryNum)
   }
 }
 
-func writeNurseryConfiguration(theNursery *Nursery, primaryUrl string) {
-  theNursery.Primary_Url = primaryUrl
+func (nursery *Nursery) WriteConfiguration(
+  primaryUrl string,
+  log *logger.LoggerType,
+) {
+  nursery.Primary_Url = primaryUrl
 
-  fmt.Printf("\n\nCreating configuration for the [%s] Nursery\n", theNursery.Name)
+  fmt.Printf("\n\nCreating configuration for the [%s] Nursery\n", nursery.Name)
 
   yamlTemplateStr := `
 # This is the configuration for the {{.Name}} Nursery
@@ -84,13 +140,13 @@ actions_dir:  "{{.Actions_Dir}}"
 `
 
   yamlTemplate, err := template.New("yamlTemplate").Parse(yamlTemplateStr)
-  setupMayBeFatal("Could not parse the yaml template", err)
+  log.MayBeFatal("Could not parse the yaml template", err)
 
-  yamlFile, err := os.Create(theNursery.Config_Path)
-  setupMayBeFatal("Could not open the config file for writing", err)
+  yamlFile, err := os.Create(nursery.Config_Path)
+  log.MayBeFatal("Could not open the config file for writing", err)
 
-  err = yamlTemplate.Execute(yamlFile, theNursery)
+  err = yamlTemplate.Execute(yamlFile, nursery)
 
   err = yamlFile.Close()
-  setupMayBeFatal("Could not close the config file", err)
+  log.MayBeFatal("Could not close the config file", err)
 }

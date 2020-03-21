@@ -33,21 +33,39 @@ import (
   "os/exec"
 //  "software.sslmate.com/src/go-pkcs12"
   "strings"
+  "sync"
   "time"
 )
 
 ////////////////////
 // User Certificates
 
-func createUserCertificate(theUser string, userNum int) {
-  if theUser == "" {
+// Create a user's X509 certificates and public/private keys.
+//
+// We provide the name of the user (usually one of their email addresses), 
+// a user unique int (used to ensure the user's serial number is unique). 
+//
+// We also provide an optional WaitGroup which, if not nil, is used to 
+// allow this function to be called asynchronously as a go routine. 
+//
+func (user *User) CreateUserCertificate(
+  ca *CertificateAuthority,
+  wg *sync.WaitGroup,
+) {
+  if wg != nil {
+    wg.Add(1)
+    defer wg.Done()
+  }
+
+  if user.Name == "" {
     log.Printf("cnConfig(WARNING): no user name specified for a user, skipping user[%d]\n", userNum)
     return
   }
 
-  uDir := "users/"+theUser
+  // TODO sort this out with user.NormalizeConfiguration
+  uDir := "users/"+user.Name
   os.MkdirAll(uDir, 0755)
-  uPath := uDir+"/"+ strings.ReplaceAll(theUser, ".", "-")
+  uPath := uDir+"/"+ strings.ReplaceAll(user.Name, ".", "-")
 
   uCaCertificateFileName := uPath+"-ca-crt.pem"
   caCertFile, caCertErr := os.Open(uCaCertificateFileName)
@@ -62,7 +80,7 @@ func createUserCertificate(theUser string, userNum int) {
   pkcsFile, pkcsErr := os.Open(uPKCS12FileName)
 
   if (caCertErr == nil && certErr == nil && keyErr == nil && pkcsErr == nil) {
-    fmt.Printf("\n\nCertificate files for the user [%s] already exist\n", theUser)
+    fmt.Printf("\n\nCertificate files for the user [%s] already exist\n", user.Name)
     fmt.Print( "  not recreating them.\n")
     caCertFile.Close()
     certFile.Close()
@@ -71,30 +89,34 @@ func createUserCertificate(theUser string, userNum int) {
     return
   }
 
-  fmt.Printf("\n\nCreating certificate files for the user [%s]\n", theUser)
+  fmt.Printf("\n\nCreating certificate files for the user [%s]\n", user.Name)
 
+  ca.StartUsing()
+  defer ca.StopUsing()
+  
   uCert := &x509.Certificate {
     // we need to use DIFFERENT serial numbers for each of CA (1<<32),
     //  C/S  ((1<<5 + nurseryNum)<<33) and
     //  User ((2<<5 + userNum)<<33)
     SerialNumber: big.NewInt(
-      int64(2<<5 + userNum)<<33 |
-      int64(config.Certificate_Authority.Serial_Number),
-    ),    SignatureAlgorithm: x509.SHA512WithRSA,
+      (user.Serial_Number)<<33 |
+      int64(ca.Serial_Number),
+    ),
+    SignatureAlgorithm: x509.SHA512WithRSA,
     Subject: pkix.Name {
-      Organization:  []string{config.Certificate_Authority.Organization},
-      Country:       []string{config.Certificate_Authority.Country},
-      Province:      []string{config.Certificate_Authority.Province},
-      Locality:      []string{config.Certificate_Authority.Locality},
-      StreetAddress: []string{config.Certificate_Authority.Street_Address},
-      PostalCode:    []string{config.Certificate_Authority.Postal_Code},
-      CommonName:    theUser + " ( ConTeXt Nursery " + config.Federation_Name + " )",
+      Organization:  []string{ca.Organization},
+      Country:       []string{ca.Country},
+      Province:      []string{ca.Province},
+      Locality:      []string{ca.Locality},
+      StreetAddress: []string{ca.Street_Address},
+      PostalCode:    []string{ca.Postal_Code},
+      CommonName:    user.Name + " ( ConTeXt Nursery " + config.Federation_Name + " )",
     },
-    EmailAddresses:  []string{config.Certificate_Authority.Email_Address},
+    EmailAddresses:  []string{ca.Email_Address},
     NotBefore: time.Now(),
-    NotAfter:  time.Now().AddDate(int(config.Certificate_Authority.Valid_For.Years),
-                                  int(config.Certificate_Authority.Valid_For.Months),
-                                  int(config.Certificate_Authority.Valid_For.Days)),
+    NotAfter:  time.Now().AddDate(int(ca.Valid_For.Years),
+                                  int(ca.Valid_For.Months),
+                                  int(ca.Valid_For.Days)),
     ExtKeyUsage: []x509.ExtKeyUsage{
       x509.ExtKeyUsageClientAuth,
     },
@@ -104,14 +126,15 @@ func createUserCertificate(theUser string, userNum int) {
       x509.KeyUsageKeyAgreement |
       x509.KeyUsageDataEncipherment,
   }
-
+  ca.StopUsing()
+  
   uPrivateKey, err := rsa.GenerateKey(rand.Reader, int(config.Key_Size))
-  setupMayBeFatal("could not generate rsa key for user ["+theUser+"]", err)
+  setupMayBeFatal("could not generate rsa key for user ["+user.Name+"]", err)
 
   uBytes, err := x509.CreateCertificate(rand.Reader, uCert, caCert, &uPrivateKey.PublicKey, caPrivateKey)
-  setupMayBeFatal("could not create the certificate for user ["+theUser+"]", err)
+  setupMayBeFatal("could not create the certificate for user ["+user.Name+"]", err)
 
-  uSubject := "Subject: ConTeXt Nursery " + config.Federation_Name + " User Certificate for user ["+theUser+"]"
+  uSubject := "Subject: ConTeXt Nursery " + config.Federation_Name + " User Certificate for user ["+user.Name+"]"
   uDate    := "Date:    "+time.Now().String()+"\n"
 
   caPEM := new(bytes.Buffer)
@@ -133,16 +156,7 @@ func createUserCertificate(theUser string, userNum int) {
     Type:  "CERTIFICATE",
     Bytes: uBytes,
   })
-//  //
-//  // add the CA certificate to the chain..
-//  //
-//  uPEM.WriteString("\n")
-//  uPEM.WriteString(uSubject + " (CA)\n")
-//  uPEM.WriteString(uDate)
-//  pem.Encode(uPEM, &pem.Block {
-//    Type:  "CERTIFICATE",
-//    Bytes: caCert.Raw,
-//  })
+
   err = ioutil.WriteFile(uCertificateFileName, uPEM.Bytes(), 0644)
   setupMayBeFatal("could not write the ["+uCertificateFileName+"] file", err)
 
@@ -175,7 +189,7 @@ func createUserCertificate(theUser string, userNum int) {
 
   thePassword, err := password.Generate(8, 2, 0, false, false)
   setupMayBeFatal("Could not generate a password", err)
-  userPasswords[theUser] = thePassword
+  userPasswords[user.Name] = thePassword
 
   err = os.Setenv("OPENSSL_PASSWORD", thePassword)
   setupMayBeFatal("Could not set the OPENSSL_PASSWORD environment variable", err)

@@ -34,14 +34,14 @@ import (
 ////////////////////////
 // Certificate Authority
 //
-var createCA                 bool
+
 var caDir                 = "ca"
 var caCertFileName        = "ca/certificateAuthority-crt.pem"
 var caPrivateKeyFileName  = "ca/certificateAuthority-key.pem"
 var caCert                  *x509.Certificate
 var caPrivateKey            *rsa.PrivateKey
 
-func createCertificateAuthorityFiles() {
+func CreateCertificateAuthorityFiles() {
   fmt.Print("\nCreating a new Certificate Authority\n")
 
   lcaCert := &x509.Certificate {
@@ -119,7 +119,7 @@ func createCertificateAuthorityFiles() {
   caPrivateKey = lcaPrivateKey
 }
 
-func loadCA() {
+func LoadCertificateAuthority() {
   if config.Federation_Name != "" {
     caDir                = caDir + "/" + config.Federation_Name
     caCertFileName       = caDir + "/" + config.Federation_Name + "-ca-crt.pem"

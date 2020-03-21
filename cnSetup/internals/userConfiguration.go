@@ -19,15 +19,40 @@ package CNSetup
 
 import (
   "fmt"
+  "github.com/diSimplex/ConTeXtNursery/logger"
   "os"
   "strings"
+  "sync"
   "text/template"
 )
 
-func writeUserConfiguration(user User, defaults User, primaryUrl string) {
+type User struct {
+  Name          string
+  Ca_Cert_Path  string
+  Cert_Path     string
+  Key_Path      string
+  Primary_Url   string
+  Config_Path   string
+  Serial_Number int64
+}
 
-  fmt.Printf("\n\nCreating configuration file for the user [%s]\n", user)
+var (
+  UserDefaults = User{
+    "", // Name
+    "", // Ca_Cert_Path
+    "", // Cert_Path
+    "", // Key_Path
+    "", // Primary_Url
+    "", // Config_Path
+    0,  // Serial_Number
+  }
+)
 
+func (user *User) NormalizeConfiguration(
+  userNum    int,
+  defaults   User,
+  primaryUrl string,
+) {
   user.Primary_Url = primaryUrl
 
   if user.Ca_Cert_Path == "" { user.Ca_Cert_Path = defaults.Ca_Cert_Path }
@@ -40,6 +65,34 @@ func writeUserConfiguration(user User, defaults User, primaryUrl string) {
   if user.Cert_Path    == "" { user.Cert_Path    = nPathPrefix+"-crt.pem" }
   if user.Key_Path     == "" { user.Key_Path     = nPathPrefix+"-key.pem" }
   if user.Config_Path  == "" { user.Config_Path  = nPathPrefix+"-config.yaml" }
+
+  // we need to use DIFFERENT serial numbers for each of CA (1<<32),
+  //  C/S  ((1<<5 + nurseryNum)<<33) and
+  //  User ((2<<5 + userNum)<<33)
+  //
+  if user.Serial_Number == 0 { user.Serial_Number = int64(2<<5 + userNum)  }
+}
+
+// Write out a user's configuration YAML file which is required for them 
+// to use the cnTypeSetter command to type set one or more of their 
+// ConTeXt documents. 
+//
+// We provide the user, the user defaults as well as the primaryUrl of 
+// this federation of Nurseries. 
+//
+// We also provide an optional WaitGroup which, if not nil, is used to 
+// allow this function to be called asynchronously as a go routine. 
+//
+func (user *User) WriteUserConfiguration(
+  wg        *sync.WaitGroup,
+  log       *logger.LoggerType,
+) {
+  if wg != nil {
+    wg.Add(1)
+    defer wg.Done()
+  }
+
+  fmt.Printf("\n\nCreating configuration file for the user [%s]\n", user)
 
   yamlTemplateStr := `
 # This is the configuration for the {{.Name}} User
@@ -55,13 +108,13 @@ cert_path:    "{{.Cert_Path}}"
 key_path:     "{{.Key_Path}}"
 `
   yamlTemplate, err := template.New("yamlTemplate").Parse(yamlTemplateStr)
-  setupMayBeFatal("Could not parse the yaml template", err)
+  log.MayBeFatal("Could not parse the yaml template", err)
 
   yamlFile, err := os.Create(user.Config_Path)
-  setupMayBeFatal("Could not open the config file for writing", err)
+  log.MayBeFatal("Could not open the config file for writing", err)
 
   err = yamlTemplate.Execute(yamlFile, user)
 
   err = yamlFile.Close()
-  setupMayBeFatal("Could not close the config file", err)
+  log.MayBeFatal("Could not close the config file", err)
 }

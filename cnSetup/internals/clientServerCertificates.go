@@ -38,7 +38,10 @@ import (
 /////////////////////////////
 // Client Server Certificates
 
-func createNurseryCertificate(nursery *Nursery, nurseryNum int) {
+func (nursery *Nursery) CreateNurseryCertificate(
+  ca *CertificateAuthority,
+  wg *sync.WaitGroup,
+) {
   if nursery.Host == "" {
     log.Printf("cnConfig(WARNING): no host names specified for a Nursery, skipping Nursery[%d]\n", nurseryNum)
     return
@@ -70,28 +73,31 @@ func createNurseryCertificate(nursery *Nursery, nurseryNum int) {
 
   fmt.Printf("\n\nCreating certificate files for the [%s] Nursery\n", nursery.Name)
 
+  ca.StartUsing()
+  defer ca.StopUsing()
+  
   nCert := &x509.Certificate {
     // we need to use DIFFERENT serial numbers for each of CA (1<<32), 
     //  C/S  ((1<<5 + nurseryNum)<<33) and
     //  User ((2<<5 + userNum)<<33)
     SerialNumber: big.NewInt(
-      int64(1<<5 + nurseryNum)<<33 |
-      int64(config.Certificate_Authority.Serial_Number),
+      (nursery.Serial_Number)<<33 |
+      int64(ca.Serial_Number),
     ),    SignatureAlgorithm: x509.SHA512WithRSA,
     Subject: pkix.Name {
-      Organization:  []string{config.Certificate_Authority.Organization},
-      Country:       []string{config.Certificate_Authority.Country},
-      Province:      []string{config.Certificate_Authority.Province},
-      Locality:      []string{config.Certificate_Authority.Locality},
-      StreetAddress: []string{config.Certificate_Authority.Street_Address},
-      PostalCode:    []string{config.Certificate_Authority.Postal_Code},
+      Organization:  []string{ca.Organization},
+      Country:       []string{ca.Country},
+      Province:      []string{ca.Province},
+      Locality:      []string{ca.Locality},
+      StreetAddress: []string{ca.Street_Address},
+      PostalCode:    []string{ca.Postal_Code},
       CommonName:    nursery.Name,
     },
-    EmailAddresses:  []string{config.Certificate_Authority.Email_Address},
+    EmailAddresses:  []string{ca.Email_Address},
     NotBefore: time.Now(),
-    NotAfter:  time.Now().AddDate(int(config.Certificate_Authority.Valid_For.Years),
-                                  int(config.Certificate_Authority.Valid_For.Months),
-                                  int(config.Certificate_Authority.Valid_For.Days)),
+    NotAfter:  time.Now().AddDate(int(ca.Valid_For.Years),
+                                  int(ca.Valid_For.Months),
+                                  int(ca.Valid_For.Days)),
     ExtKeyUsage: []x509.ExtKeyUsage{
       x509.ExtKeyUsageClientAuth,
       x509.ExtKeyUsageServerAuth,
@@ -102,6 +108,7 @@ func createNurseryCertificate(nursery *Nursery, nurseryNum int) {
       x509.KeyUsageKeyAgreement |
       x509.KeyUsageDataEncipherment,
   }
+  ca.StopUsing()
 
   // Add the DNSNames and IPAddresses
   for _, aHost := range nursery.Hosts {

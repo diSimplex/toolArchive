@@ -21,11 +21,13 @@ import (
   "bufio"
   "flag"
   "fmt"
-
+  "github.com/diSimplex/ConTeXtNursery/cnSetup/internals"
+  "github.com/diSimplex/ConTeXtNursery/logger"
   "log"
   "os"
-  "time"
+//  "time"
   "strings"
+  "sync"
 // temp
 //  "bytes"
 //  "crypto/x509"
@@ -52,8 +54,6 @@ func setupMayBeFatal(logMessage string, err error) {
 func main() {
   var (
     wg sync.WaitGroup
-  
-
   )
 
   const (
@@ -69,16 +69,27 @@ func main() {
   flag.BoolVar(&showConfig, "s", showConfigDefault, showConfigUsage)
   flag.Parse()
 
-  config := LoadConfiguration(configFileName, showConfig)
+  csLog  := logger.CreateLogger("cnSetup")
+  config := CNSetup.CreateConfiguration(csLog)
+  config.LoadConfiguration(configFileName, showConfig)
 
   wg.Add(1)
   
-  loadCA()
+  ca  := CNSetup.CreateCA(config)
+  err := ca.LoadCAFromFiles()
+  if err != nil {
+    if createCA {
+      err = ca.CreateNewCA()
+      csLog.MayBeFatal("Could not create a new CA", err)
+    } else {
+      csLog.MayBeFatal("Could not load existing CA from files\n\tDid you mean to use the -createCA command line switch?\n", err)
+    }
+  }
 
   // now create each Nursery's certificates as well as configuration
   for i, aNursery := range config.Nurseries {
-    createNurseryCertificate(&aNursery, i)
-    writeNurseryConfiguration(&aNursery, primaryNurseryUrl)
+    aNursery.CreateNurseryCertificate(i, ca, config, &wg)
+    aNursery.WriteConfiguration(config)
   }
 
   // start by loading in the existing user passwords
@@ -98,15 +109,16 @@ func main() {
 
   // now create each User's certificates
   for i, aUser := range config.Users {
-    createUserCertificate(aUser.Name, i)
-    writeUserConfiguration(aUser, userDefaults, primaryNurseryUrl)
+    aUser.Password = userPasswords[aUser.Name]
+    aUser.CreateUserCertificate(i, ca, config, &wg)
+    aUser.WriteConfiguration(config, &wg)
   }
 
   // now write out the file of user passwords
   passwordFile, err = os.Create("users/passwords")
   setupMayBeFatal("Could not open [users/passwords] file", err)
-  for aUser, aPassword := range userPasswords {
-    passwordFile.WriteString(aUser+"\t"+aPassword+"\n")
+  for _, aUser := range config.Users {
+    passwordFile.WriteString(aUser.Name+"\t"+aUser.Password+"\n")
   }
   passwordFile.Close()
   os.Chmod("users/passwords", 0600)

@@ -19,7 +19,6 @@ package CNSetup
 
 import (
   "fmt"
-  "github.com/diSimplex/ConTeXtNursery/logger"
   "os"
   "strconv"
   "strings"
@@ -33,6 +32,7 @@ type Nursery struct {
   Interface     string
   Port          uint
   Html_Dir      string
+  Cert_Dir      string
   Ca_Cert_Path  string
   Cert_Path     string
   Key_Path      string
@@ -43,6 +43,7 @@ type Nursery struct {
   Work_Dir      string
   Actions_Dir   string
   Serial_Number int64
+  Key_Size      uint
 }
 
 var (
@@ -53,6 +54,7 @@ var (
     "0.0.0.0",                // Interface
     8989,                     // Port
     "/var/www/html",          // Html_Dir
+    "",                       // Cert_Dir
     "",                       // Ca_Cert_Path
     "",                       // Cert_Path
     "",                       // Key_Path
@@ -63,6 +65,7 @@ var (
     "workDir",                // Word_Dir
     "actionsDir",             // Actions_Dir
     0,                        // Serial_Number
+    0,                        // Key_Size
   }
 )
 
@@ -70,20 +73,22 @@ func (nursery *Nursery) ComputeUrl() string {
   return "https://"+nursery.Hosts[0]+":"+strconv.Itoa(int(nursery.Port))
 }
 
-func (nursery *Nursery) NormalizeConfiguration(
-  nurseryNumber int,
-  defaults     *Nursery,
-  primaryUrl    string,
+func (nursery *Nursery) NormalizeConfig(
+  nurseryNum int,
+  defaults  *Nursery,
+  config    *ConfigType,
 ) {
   if nursery.Interface    == "" { nursery.Interface    = defaults.Interface }
   if nursery.Port         == 0  { nursery.Port         = defaults.Port }
   if nursery.Html_Dir     == "" { nursery.Html_Dir     = defaults.Html_Dir }
+  if nursery.Cert_Dir     == "" { nursery.Cert_Dir     = defaults.Cert_Dir }
   if nursery.Ca_Cert_Path == "" { nursery.Ca_Cert_Path = defaults.Ca_Cert_Path }
   if nursery.Cert_Path    == "" { nursery.Cert_Path    = defaults.Cert_Path }
   if nursery.Key_Path     == "" { nursery.Key_Path     = defaults.Key_Path }
   if nursery.Work_Dir     == "" { nursery.Work_Dir     = defaults.Work_Dir }
   if nursery.Actions_Dir  == "" { nursery.Actions_Dir  = defaults.Actions_Dir }
-
+  if nursery.Key_Size     == 0  { nursery.Key_Size     = defaults.Key_Size }
+  
   if nursery.Host == "" { nursery.Host = defaults.Host }
   if nursery.Host != "" {
     hosts := strings.Split(nursery.Host, ",")
@@ -91,7 +96,10 @@ func (nursery *Nursery) NormalizeConfiguration(
       nursery.Hosts = append(nursery.Hosts, strings.TrimSpace(aString))
     }
     if nursery.Name == "" { nursery.Name = nursery.Hosts[0] }
-    nPathPrefix := "servers/"+nursery.Name +"/"+nursery.Name
+    if nursery.Cert_Dir     == "" {
+      nursery.Cert_Dir = "servers/"+nursery.Name
+    }
+    nPathPrefix := nursery.Cert_Dir + "/" + nursery.Name
     if nursery.Ca_Cert_Path == "" { nursery.Ca_Cert_Path = nPathPrefix+"-ca-crt.pem" }
     if nursery.Cert_Path    == "" { nursery.Cert_Path    = nPathPrefix+"-crt.pem" }
     if nursery.Key_Path     == "" { nursery.Key_Path     = nPathPrefix+"-key.pem" }
@@ -108,13 +116,13 @@ func (nursery *Nursery) NormalizeConfiguration(
   if nursery.Serial_Number == 0 {
     nursery.Serial_Number = int64(1<<5 + nurseryNum)
   }
+  if nursery.Key_Size == 0 {
+    nursery.Key_Size = config.Key_Size
+  }
 }
 
-func (nursery *Nursery) WriteConfiguration(
-  primaryUrl string,
-  log *logger.LoggerType,
-) {
-  nursery.Primary_Url = primaryUrl
+func (nursery *Nursery) WriteConfiguration(config *ConfigType) {
+  nursery.Primary_Url = config.Primary_Nursery_Url
 
   fmt.Printf("\n\nCreating configuration for the [%s] Nursery\n", nursery.Name)
 
@@ -140,13 +148,13 @@ actions_dir:  "{{.Actions_Dir}}"
 `
 
   yamlTemplate, err := template.New("yamlTemplate").Parse(yamlTemplateStr)
-  log.MayBeFatal("Could not parse the yaml template", err)
+  config.csLog.MayBeFatal("Could not parse the yaml template", err)
 
   yamlFile, err := os.Create(nursery.Config_Path)
-  log.MayBeFatal("Could not open the config file for writing", err)
+  config.csLog.MayBeFatal("Could not open the config file for writing", err)
 
   err = yamlTemplate.Execute(yamlFile, nursery)
 
   err = yamlFile.Close()
-  log.MayBeFatal("Could not close the config file", err)
+  config.csLog.MayBeFatal("Could not close the config file", err)
 }

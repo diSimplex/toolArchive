@@ -19,7 +19,6 @@ package CNSetup
 
 import (
   "fmt"
-  "github.com/diSimplex/ConTeXtNursery/logger"
   "os"
   "strings"
   "sync"
@@ -28,49 +27,70 @@ import (
 
 type User struct {
   Name          string
+  Cert_Dir      string
   Ca_Cert_Path  string
   Cert_Path     string
   Key_Path      string
+  Pkcs12_Path   string
   Primary_Url   string
   Config_Path   string
   Serial_Number int64
+  Key_Size      uint
+  Password      string
 }
 
 var (
   UserDefaults = User{
     "", // Name
+    "", // Cert_Dir
     "", // Ca_Cert_Path
     "", // Cert_Path
     "", // Key_Path
+    "", // Pkcs12_Path
     "", // Primary_Url
     "", // Config_Path
     0,  // Serial_Number
+    0,  // Key_Size
+    "", // Password
   }
 )
 
-func (user *User) NormalizeConfiguration(
-  userNum    int,
-  defaults   User,
-  primaryUrl string,
+func (user *User) NormalizeConfig(
+  userNum   int,
+  defaults  User,
+  config   *ConfigType,
 ) {
-  user.Primary_Url = primaryUrl
+  if user.Name == "" && -1 < userNum {
+    config.csLog.Logf("You MUST supply a name for all users!")
+    os.Exit(-1)
+  }
+  
+  user.Primary_Url = config.Primary_Nursery_Url
 
+  if user.Cert_Dir     == "" { user.Cert_Dir     = defaults.Cert_Dir }
   if user.Ca_Cert_Path == "" { user.Ca_Cert_Path = defaults.Ca_Cert_Path }
   if user.Cert_Path    == "" { user.Cert_Path    = defaults.Cert_Path }
   if user.Key_Path     == "" { user.Key_Path     = defaults.Key_Path }
-
-  nPathPrefix := "users/"+user.Name +"/"+strings.ReplaceAll(user.Name, ".", "-")
-
-  if user.Ca_Cert_Path == "" { user.Ca_Cert_Path = nPathPrefix+"-ca-crt.pem" }
-  if user.Cert_Path    == "" { user.Cert_Path    = nPathPrefix+"-crt.pem" }
-  if user.Key_Path     == "" { user.Key_Path     = nPathPrefix+"-key.pem" }
-  if user.Config_Path  == "" { user.Config_Path  = nPathPrefix+"-config.yaml" }
+  if user.Pkcs12_Path  == "" { user.Pkcs12_Path  = defaults.Pkcs12_Path }
+  
+  if -1 < userNum {
+    if user.Cert_Dir     == "" { user.Cert_Dir     =  "users/"+user.Name }
+  
+    nPathPrefix := user.Cert_Dir + "/" + strings.ReplaceAll(user.Name, ".", "-")
+    if user.Ca_Cert_Path == "" { user.Ca_Cert_Path = nPathPrefix+"-ca-crt.pem" }
+    if user.Cert_Path    == "" { user.Cert_Path    = nPathPrefix+"-crt.pem" }
+    if user.Key_Path     == "" { user.Key_Path     = nPathPrefix+"-key.pem" }
+    if user.Pkcs12_Path  == "" { user.Pkcs12_Path  = nPathPrefix+"-pkcs12.p12" }
+    if user.Config_Path  == "" { user.Config_Path  = nPathPrefix+"-config.yaml" }
+  }
 
   // we need to use DIFFERENT serial numbers for each of CA (1<<32),
   //  C/S  ((1<<5 + nurseryNum)<<33) and
   //  User ((2<<5 + userNum)<<33)
   //
   if user.Serial_Number == 0 { user.Serial_Number = int64(2<<5 + userNum)  }
+
+  if user.Key_Size == 0 { user.Key_Size = config.Key_Size   }
 }
 
 // Write out a user's configuration YAML file which is required for them 
@@ -83,9 +103,9 @@ func (user *User) NormalizeConfiguration(
 // We also provide an optional WaitGroup which, if not nil, is used to 
 // allow this function to be called asynchronously as a go routine. 
 //
-func (user *User) WriteUserConfiguration(
-  wg        *sync.WaitGroup,
-  log       *logger.LoggerType,
+func (user *User) WriteConfiguration(
+  config *ConfigType,
+  wg     *sync.WaitGroup,
 ) {
   if wg != nil {
     wg.Add(1)
@@ -108,13 +128,13 @@ cert_path:    "{{.Cert_Path}}"
 key_path:     "{{.Key_Path}}"
 `
   yamlTemplate, err := template.New("yamlTemplate").Parse(yamlTemplateStr)
-  log.MayBeFatal("Could not parse the yaml template", err)
+  config.csLog.MayBeFatal("Could not parse the yaml template", err)
 
   yamlFile, err := os.Create(user.Config_Path)
-  log.MayBeFatal("Could not open the config file for writing", err)
+  config.csLog.MayBeFatal("Could not open the config file for writing", err)
 
   err = yamlTemplate.Execute(yamlFile, user)
 
   err = yamlFile.Close()
-  log.MayBeFatal("Could not close the config file", err)
+  config.csLog.MayBeFatal("Could not close the config file", err)
 }

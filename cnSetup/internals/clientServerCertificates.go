@@ -26,12 +26,13 @@ import (
   "encoding/pem"
   "fmt"
   "io/ioutil"
-  "log"
+//  "log"
   "math/big"
   "net"
   "os"
   "path/filepath"
 //  "strings"
+  "sync"
   "time"
 )
 
@@ -39,28 +40,20 @@ import (
 // Client Server Certificates
 
 func (nursery *Nursery) CreateNurseryCertificate(
-  ca *CertificateAuthority,
-  wg *sync.WaitGroup,
-) {
-  if nursery.Host == "" {
-    log.Printf("cnConfig(WARNING): no host names specified for a Nursery, skipping Nursery[%d]\n", nurseryNum)
-    return
+  nurseryNum int,
+  ca        *CAType,
+  config    *ConfigType,
+  wg        *sync.WaitGroup,
+) error {
+  if wg != nil {
+    wg.Add(1)
+    defer wg.Done()
   }
 
-  nDir := "servers/"+nursery.Name
-  os.MkdirAll(nDir, 0755)
-  if nursery.Ca_Cert_Path == "" {
-    nursery.Ca_Cert_Path = nDir+"/"+nursery.Name+"-ca-crt.pem"
-  }
+  os.MkdirAll(nursery.Cert_Dir, 0755)
   caCertFile, caCertErr := os.Open(nursery.Ca_Cert_Path)
-  if nursery.Cert_Path == "" {
-    nursery.Cert_Path = nDir+"/"+nursery.Name+"-crt.pem"
-  }
-  certFile, certErr := os.Open(nursery.Ca_Cert_Path)
-  if nursery.Key_Path == "" {
-    nursery.Key_Path = nDir+"/"+nursery.Name+"-key.pem"
-  }
-  keyFile, keyErr := os.Open(nursery.Ca_Cert_Path)
+  certFile,   certErr   := os.Open(nursery.Cert_Path)
+  keyFile,    keyErr    := os.Open(nursery.Key_Path)
 
   if (caCertErr == nil && certErr == nil && keyErr == nil) {
     fmt.Printf("\n\nCertificate files for the [%s] Nursery already exist\n", nursery.Name)
@@ -68,7 +61,7 @@ func (nursery *Nursery) CreateNurseryCertificate(
     caCertFile.Close()
     certFile.Close()
     keyFile.Close()
-    return
+    return nil
   }
 
   fmt.Printf("\n\nCreating certificate files for the [%s] Nursery\n", nursery.Name)
@@ -120,11 +113,20 @@ func (nursery *Nursery) CreateNurseryCertificate(
     }
   }
 
-  nPrivateKey, err := rsa.GenerateKey(rand.Reader, int(config.Key_Size))
-  setupMayBeFatal("could not generate rsa key for ["+nursery.Name+"] Nursery", err)
+  nPrivateKey, err := rsa.GenerateKey(rand.Reader, int(nursery.Key_Size))
+  if err != nil {
+    return fmt.Errorf("could not generate rsa key for ["+nursery.Name+"] Nursery: %w", err)
+  }
 
-  nBytes, err := x509.CreateCertificate(rand.Reader, nCert, caCert, &nPrivateKey.PublicKey, caPrivateKey)
-  setupMayBeFatal("could not create the certificate for ["+nursery.Name+"] Nursery", err)
+  nBytes, err := x509.CreateCertificate(
+    rand.Reader,
+    nCert, ca.Cert,
+    &nPrivateKey.PublicKey,
+    ca.PrivateKey,
+  )
+  if err != nil {
+    return fmt.Errorf("could not create the certificate for ["+nursery.Name+"] Nursery: %w", err)
+  }
 
   nSubject := "Subject: ConTeXt Nursery " + config.Federation_Name + " Server Certificate for ["+nursery.Name+"] Nursery"
   nDate    := "Date:    "+time.Now().String()+"\n"
@@ -135,11 +137,13 @@ func (nursery *Nursery) CreateNurseryCertificate(
   caPEM.WriteString(nDate)
   pem.Encode(caPEM, &pem.Block {
     Type:  "CERTIFICATE",
-    Bytes: caCert.Raw,
+    Bytes: ca.Cert.Raw,
   })
   os.MkdirAll(filepath.Dir(nursery.Ca_Cert_Path), 0755)
   err = ioutil.WriteFile(nursery.Ca_Cert_Path, caPEM.Bytes(), 0644)
-  setupMayBeFatal("could not write the ["+nursery.Ca_Cert_Path+"] file", err)
+  if err != nil {
+    return fmt.Errorf("could not write the ["+nursery.Ca_Cert_Path+"] file: %w", err)
+  }
 
   nPEM := new(bytes.Buffer)
   nPEM.WriteString("\n")
@@ -157,11 +161,13 @@ func (nursery *Nursery) CreateNurseryCertificate(
   nPEM.WriteString(nDate)
   pem.Encode(nPEM, &pem.Block {
     Type:  "CERTIFICATE",
-    Bytes: caCert.Raw,
+    Bytes: ca.Cert.Raw,
   })
   os.MkdirAll(filepath.Dir(nursery.Cert_Path), 0755)
   err = ioutil.WriteFile(nursery.Cert_Path, nPEM.Bytes(), 0644)
-  setupMayBeFatal("could not write the ["+nursery.Cert_Path+"] file", err)
+  if err != nil {
+    return fmt.Errorf("could not write the ["+nursery.Cert_Path+"] file: %w", err)
+  }
 
   // NOTE this private key is left UN-ENCRYPTED on the file system!
   // SO you need to ensure it is not readable by anyone other than the
@@ -177,5 +183,8 @@ func (nursery *Nursery) CreateNurseryCertificate(
   })
   os.MkdirAll(filepath.Dir(nursery.Key_Path), 0755)
   err = ioutil.WriteFile(nursery.Key_Path, nPrivateKeyPEM.Bytes(), 0644)
-  setupMayBeFatal("could not write the ["+nursery.Key_Path+"] file", err)
+  if err != nil {
+    return fmt.Errorf("could not write the ["+nursery.Key_Path+"] file: %w", err)
+  }
+  return nil
 }

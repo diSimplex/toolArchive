@@ -28,6 +28,7 @@ import (
   "io/ioutil"
   "math/big"
   "os"
+  "sync"
   "time"
 )
 
@@ -35,37 +36,101 @@ import (
 // Certificate Authority
 //
 
-var caDir                 = "ca"
-var caCertFileName        = "ca/certificateAuthority-crt.pem"
-var caPrivateKeyFileName  = "ca/certificateAuthority-key.pem"
-var caCert                  *x509.Certificate
-var caPrivateKey            *rsa.PrivateKey
+type  CAType struct {
+  Serial_Number  uint
+  Organization   string
+  Country        string
+  Province       string
+  Locality       string
+  Street_Address string
+  Postal_Code    string
+  Email_Address  string
+  Common_Name    string
 
-func CreateCertificateAuthorityFiles() {
-  fmt.Print("\nCreating a new Certificate Authority\n")
+  Valid_For struct {
+    Years  uint `default:"10"`
+    Months uint `default:"0"`
+    Days   uint `default:"0"`
+  }
+  
+  Dir            string
+  Cert_File_Name string
+  Key_File_Name  string
+  
+  Cert          *x509.Certificate
+  PrivateKey    *rsa.PrivateKey
+  
+  federationName string
+  keySize        uint
+  
+  mutex          *sync.RWMutex
+}
 
-  lcaCert := &x509.Certificate {
+func (config *ConfigType) NormalizeCA() {
+  if config.Federation_Name != "" {
+     config.Certificate_Authority.federationName = config.Federation_Name
+     
+    if config.Certificate_Authority.Dir == "" {
+      config.Certificate_Authority.Dir = "ca/" + config.Federation_Name
+    }
+    if config.Certificate_Authority.Cert_File_Name == "" {
+      config.Certificate_Authority.Cert_File_Name = 
+        config.Certificate_Authority.Dir + "/" +
+        config.Federation_Name + "-ca-crt.pem"
+    }
+    if config.Certificate_Authority.Key_File_Name == "" {
+     config.Certificate_Authority.Key_File_Name = 
+       config.Certificate_Authority.Dir + "/" +
+       config.Federation_Name + "-ca-key.pem"
+    }
+  } else {
+    config.csLog.Logf("You MUST specify a Federation Name")
+    os.Exit(-1)
+  }
+  
+  if 1023 < config.Key_Size {
+    config.Certificate_Authority.keySize = config.Key_Size
+  } else {
+    config.csLog.Logf("You MUST specify a Key_Size of at least 1024")
+    os.Exit(-1)
+  }
+}
+
+func CreateCA(config *ConfigType) *CAType {
+  newCA := config.Certificate_Authority
+  return &newCA
+}
+
+func (ca *CAType) StartUsing() {
+  ca.mutex.Lock()
+}
+
+func (ca *CAType) StopUsing() {
+  ca.mutex.Unlock()
+}
+
+func (ca *CAType) CreateNewCA() error {
+  fmt.Print("\nCreating a new Certificate Authority for [%s]\n", ca.federationName)
+
+  ca.Cert = &x509.Certificate {
     // we need to use DIFFERENT serial numbers for each of CA (1<<32), 
     //  C/S (1<<33) and User (1<<34)
-    SerialNumber: big.NewInt(
-      int64(1<<32) |
-      int64(config.Certificate_Authority.Serial_Number),
-    ),
+    SerialNumber: big.NewInt(int64(1<<32) | int64(ca.Serial_Number)),
     SignatureAlgorithm: x509.SHA512WithRSA,
     Subject: pkix.Name {
-      Organization:  []string{config.Certificate_Authority.Organization},
-      Country:       []string{config.Certificate_Authority.Country},
-      Province:      []string{config.Certificate_Authority.Province},
-      Locality:      []string{config.Certificate_Authority.Locality},
-      StreetAddress: []string{config.Certificate_Authority.Street_Address},
-      PostalCode:    []string{config.Certificate_Authority.Postal_Code},
-      CommonName:    "ConTeXt Nursery "+config.Certificate_Authority.Common_Name,
+      Organization:  []string{ca.Organization},
+      Country:       []string{ca.Country},
+      Province:      []string{ca.Province},
+      Locality:      []string{ca.Locality},
+      StreetAddress: []string{ca.Street_Address},
+      PostalCode:    []string{ca.Postal_Code},
+      CommonName:    "ConTeXt Nursery "+ca.Common_Name,
     },
-    EmailAddresses:  []string{config.Certificate_Authority.Email_Address},
+    EmailAddresses:  []string{ca.Email_Address},
     NotBefore: time.Now(),
-    NotAfter:  time.Now().AddDate(int(config.Certificate_Authority.Valid_For.Years),
-                                  int(config.Certificate_Authority.Valid_For.Months),
-                                  int(config.Certificate_Authority.Valid_For.Days)),
+    NotAfter:  time.Now().AddDate(int(ca.Valid_For.Years),
+                                  int(ca.Valid_For.Months),
+                                  int(ca.Valid_For.Days)),
     IsCA:        true,
     ExtKeyUsage: []x509.ExtKeyUsage{
       x509.ExtKeyUsageClientAuth,
@@ -75,16 +140,30 @@ func CreateCertificateAuthorityFiles() {
     BasicConstraintsValid: true,
   }
 
-  lcaPrivateKey, err := rsa.GenerateKey(rand.Reader, int(config.Key_Size))
-  setupMayBeFatal("could not generate rsa key for CA", err)
+  var err error
+  ca.PrivateKey, err = rsa.GenerateKey(rand.Reader, int(ca.keySize))
+  if err != nil {
+    return fmt.Errorf("could not generate rsa key for CA: %w", err)
+  }
 
-  caBytes, err := x509.CreateCertificate(rand.Reader, lcaCert, lcaCert, &lcaPrivateKey.PublicKey, lcaPrivateKey)
-  setupMayBeFatal("could not create the CA certificate", err)
+  ca.Cert.Raw, err = x509.CreateCertificate(
+    rand.Reader,
+    ca.Cert, ca.Cert,
+    &ca.PrivateKey.PublicKey,
+    ca.PrivateKey,
+  )
+  if err != nil {
+    return fmt.Errorf("could not create the CA certificate: %w", err)
+  }
 
-  caSubject := "Subject: ConTeXt Nursery " + config.Federation_Name + " Certificate Authority\n"
+  return nil
+}
+
+func (ca *CAType) WriteCAFiles() error {
+  caSubject := "Subject: ConTeXt Nursery " + ca.federationName + " Certificate Authority\n"
   caDate    := "Date:    "+time.Now().String()+"\n"
 
-  os.MkdirAll(caDir, 0755)
+  os.MkdirAll(ca.Dir, 0755)
 
   caPEM := new(bytes.Buffer)
   caPEM.WriteString("\n")
@@ -92,12 +171,13 @@ func CreateCertificateAuthorityFiles() {
   caPEM.WriteString(caDate)
   pem.Encode(caPEM, &pem.Block {
     Type:  "CERTIFICATE",
-    Bytes: caBytes,
+    Bytes: ca.Cert.Raw,
   })
-  lcaCert.Raw = caBytes
-  err = ioutil.WriteFile(caCertFileName, caPEM.Bytes(), 0644)
-  setupMayBeFatal("could not write the certificateAuthority.crt file", err)
-
+  err := ioutil.WriteFile(ca.Cert_File_Name, caPEM.Bytes(), 0644)
+  if err != nil {
+    return fmt.Errorf("could not write the certificateAuthority.crt file: %w", err)
+  }
+  
   // NOTE this private key is left UN-ENCRYPTED on the file system!
   // SO you need to ensure it is not readable by anyone other than the
   // user who needs to run the cnSetup!
@@ -108,86 +188,51 @@ func CreateCertificateAuthorityFiles() {
   caPrivateKeyPEM.WriteString(caDate)
   pem.Encode(caPrivateKeyPEM, &pem.Block {
     Type: "RSA PRIVATE KEY",
-    Bytes: x509.MarshalPKCS1PrivateKey(lcaPrivateKey),
+    Bytes: x509.MarshalPKCS1PrivateKey(ca.PrivateKey),
   })
-  err = ioutil.WriteFile(caPrivateKeyFileName, caPrivateKeyPEM.Bytes(), 0600)
-  setupMayBeFatal("could not write the certificateAuthority.key file", err)
-
-  // since we have made it this far... both the cert and key are OK...
-  // so store the local copies in the global variables...
-  caCert       = lcaCert
-  caPrivateKey = lcaPrivateKey
+  err = ioutil.WriteFile(ca.Key_File_Name, caPrivateKeyPEM.Bytes(), 0600)
+  if err != nil {
+    return fmt.Errorf("could not write the certificateAuthority.key file: %w", err)
+  }
+  
+  return nil
 }
 
-func LoadCertificateAuthority() {
-  if config.Federation_Name != "" {
-    caDir                = caDir + "/" + config.Federation_Name
-    caCertFileName       = caDir + "/" + config.Federation_Name + "-ca-crt.pem"
-    caPrivateKeyFileName = caDir + "/" + config.Federation_Name + "-ca-key.pem"
-  }
-
-  caCertBytes, err := ioutil.ReadFile(caCertFileName)
+func (ca *CAType) LoadCAFromFiles() error {
+  caCertBytes, err := ioutil.ReadFile(ca.Cert_File_Name)
   if err != nil {
-    if !createCA {
-      setupMayBeFatal("could not load the certificate authority's *.crt file; did you want to use the '-createCA' option?", err)
-    } else {
-      createCertificateAuthorityFiles()
-      return
-    }
+    return fmt.Errorf("could not load the certificate authority's *.crt file: %w", err)
   }
 
   caCertPEM, _ /*restCaCertBytes*/ := pem.Decode(caCertBytes)
   if caCertPEM == nil || caCertPEM.Type != "CERTIFICATE" {
-    if !createCA {
-      setupMayBeFatal("could not locate the certificate authority's CERTIFICATE block", err)
-    } else {
-      createCertificateAuthorityFiles()
-      return
-    }
+    return fmt.Errorf("could not locate the certificate authority's CERTIFICATE block: %w", err)
   }
 
   lcaCert, err := x509.ParseCertificate(caCertPEM.Bytes)
   if err != nil {
-    if !createCA {
-      setupMayBeFatal("could not parse the certificate authority's certificate", err)
-    } else {
-      createCertificateAuthorityFiles()
-      return
-    }
+    return fmt.Errorf("could not parse the certificate authority's certificate: %w", err)
   }
 
-  caKeyBytes,  err  := ioutil.ReadFile(caPrivateKeyFileName)
+  caKeyBytes,  err  := ioutil.ReadFile(ca.Key_File_Name)
   if err != nil {
-    if !createCA {
-      setupMayBeFatal("could not load the certificate authority's *.key file", err)
-    } else {
-      createCertificateAuthorityFiles()
-      return
-    }
+    return fmt.Errorf("could not load the certificate authority's *.key file: %w", err)
   }
 
   caKeyPEM, _ /*restCaKeyBytes*/ := pem.Decode(caKeyBytes)
   if caKeyPEM == nil || caKeyPEM.Type != "RSA PRIVATE KEY" {
-    if !createCA {
-      setupMayBeFatal("could not locate the certificate authority's RSA PRIVATE KEY block", err)
-    } else {
-      createCertificateAuthorityFiles()
-      return
-    }
+    return fmt.Errorf("could not locate the certificate authority's RSA PRIVATE KEY block: %w", err)
   }
 
   lcaPrivateKey, err := x509.ParsePKCS1PrivateKey(caKeyPEM.Bytes)
   if err != nil {
-    if !createCA {
-      setupMayBeFatal("could not parse the certificate authority's private key", err)
-    } else {
-      createCertificateAuthorityFiles()
-      return
-    }
+    return fmt.Errorf("could not parse the certificate authority's private key: 5w", err)
   }
 
   // If we managed to get this far... both the cert and key are OK...
   // so store the local copies in the global variables...
-  caCert       = lcaCert
-  caPrivateKey = lcaPrivateKey
+  ca.Cert       = lcaCert
+  ca.PrivateKey = lcaPrivateKey
+  
+  return nil
 }

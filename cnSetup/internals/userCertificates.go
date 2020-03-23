@@ -28,11 +28,11 @@ import (
   "github.com/sethvargo/go-password/password"
   "io/ioutil"
   "math/big"
-  "log"
+//  "log"
   "os"
   "os/exec"
 //  "software.sslmate.com/src/go-pkcs12"
-  "strings"
+//  "strings"
   "sync"
   "time"
 )
@@ -49,35 +49,22 @@ import (
 // allow this function to be called asynchronously as a go routine. 
 //
 func (user *User) CreateUserCertificate(
-  ca *CertificateAuthority,
-  wg *sync.WaitGroup,
-) {
+  userNum int,
+  ca     *CAType,
+  config *ConfigType,
+  wg     *sync.WaitGroup,
+) error {
   if wg != nil {
     wg.Add(1)
     defer wg.Done()
   }
 
-  if user.Name == "" {
-    log.Printf("cnConfig(WARNING): no user name specified for a user, skipping user[%d]\n", userNum)
-    return
-  }
-
   // TODO sort this out with user.NormalizeConfiguration
-  uDir := "users/"+user.Name
-  os.MkdirAll(uDir, 0755)
-  uPath := uDir+"/"+ strings.ReplaceAll(user.Name, ".", "-")
-
-  uCaCertificateFileName := uPath+"-ca-crt.pem"
-  caCertFile, caCertErr := os.Open(uCaCertificateFileName)
-
-  uCertificateFileName := uPath+"-crt.pem"
-  certFile, certErr := os.Open(uCertificateFileName)
-
-  uPrivateKeyFileName := uPath+"-key.pem"
-  keyFile, keyErr := os.Open(uPrivateKeyFileName)
-
-  uPKCS12FileName := uPath+"-pkcs12.p12"
-  pkcsFile, pkcsErr := os.Open(uPKCS12FileName)
+  os.MkdirAll(user.Cert_Dir, 0755)
+  caCertFile, caCertErr := os.Open(user.Ca_Cert_Path)
+  certFile, certErr := os.Open(user.Cert_Path)
+  keyFile, keyErr := os.Open(user.Key_Path)
+  pkcsFile, pkcsErr := os.Open(user.Pkcs12_Path)
 
   if (caCertErr == nil && certErr == nil && keyErr == nil && pkcsErr == nil) {
     fmt.Printf("\n\nCertificate files for the user [%s] already exist\n", user.Name)
@@ -86,7 +73,7 @@ func (user *User) CreateUserCertificate(
     certFile.Close()
     keyFile.Close()
     pkcsFile.Close()
-    return
+    return nil
   }
 
   fmt.Printf("\n\nCreating certificate files for the user [%s]\n", user.Name)
@@ -128,11 +115,20 @@ func (user *User) CreateUserCertificate(
   }
   ca.StopUsing()
   
-  uPrivateKey, err := rsa.GenerateKey(rand.Reader, int(config.Key_Size))
-  setupMayBeFatal("could not generate rsa key for user ["+user.Name+"]", err)
+  uPrivateKey, err := rsa.GenerateKey(rand.Reader, int(user.Key_Size))
+  if err != nil {
+    return fmt.Errorf("could not generate rsa key for user [%s]: %w", user.Name, err)
+  }
 
-  uBytes, err := x509.CreateCertificate(rand.Reader, uCert, caCert, &uPrivateKey.PublicKey, caPrivateKey)
-  setupMayBeFatal("could not create the certificate for user ["+user.Name+"]", err)
+  uBytes, err := x509.CreateCertificate(
+    rand.Reader,
+    uCert, ca.Cert,
+    &uPrivateKey.PublicKey,
+    ca.PrivateKey,
+  )
+  if err != nil {
+    return fmt.Errorf("could not create the certificate for user [%s]: %w", user.Name, err)
+  }
 
   uSubject := "Subject: ConTeXt Nursery " + config.Federation_Name + " User Certificate for user ["+user.Name+"]"
   uDate    := "Date:    "+time.Now().String()+"\n"
@@ -143,10 +139,12 @@ func (user *User) CreateUserCertificate(
   caPEM.WriteString(uDate)
   pem.Encode(caPEM, &pem.Block {
     Type:  "CERTIFICATE",
-    Bytes: caCert.Raw,
+    Bytes: ca.Cert.Raw,
   })
-  err = ioutil.WriteFile(uCaCertificateFileName, caPEM.Bytes(), 0644)
-  setupMayBeFatal("could not write the ["+uCaCertificateFileName+"] file", err)
+  err = ioutil.WriteFile(user.Ca_Cert_Path, caPEM.Bytes(), 0644)
+  if err != nil {
+    return fmt.Errorf("could not write the [%s] file: %w",  user.Ca_Cert_Path, err)
+  }
 
   uPEM := new(bytes.Buffer)
   uPEM.WriteString("\n")
@@ -157,8 +155,10 @@ func (user *User) CreateUserCertificate(
     Bytes: uBytes,
   })
 
-  err = ioutil.WriteFile(uCertificateFileName, uPEM.Bytes(), 0644)
-  setupMayBeFatal("could not write the ["+uCertificateFileName+"] file", err)
+  err = ioutil.WriteFile(user.Cert_Path, uPEM.Bytes(), 0644)
+  if err != nil {
+    return fmt.Errorf("could not write the [%s] file: %w", user.Cert_Path, err)
+  }
 
   uPrivateKeyPEM := new(bytes.Buffer)
   uPrivateKeyPEM.WriteString("\n")
@@ -168,18 +168,25 @@ func (user *User) CreateUserCertificate(
     Type: "RSA PRIVATE KEY",
     Bytes: x509.MarshalPKCS1PrivateKey(uPrivateKey),
   })
-  err = ioutil.WriteFile(uPrivateKeyFileName, uPrivateKeyPEM.Bytes(), 0600)
-  setupMayBeFatal("could not write the ["+uPrivateKeyFileName+"] file", err)
+  err = ioutil.WriteFile(user.Key_Path, uPrivateKeyPEM.Bytes(), 0600)
+  if err != nil {
+    return fmt.Errorf("could not write the [%s] file: %w", user.Key_Path, err)
+  }
 
 //  uCert, err := x509.ParseCertificate(uBytes)
-//  setupMayBeFatal("could not parse x509 certificate", err)
+//  if err != nil {
+//    return fmt.Errorf("could not parse x509 certificate: %w", err)
+//  }
 
 //  pfxBytes, err := pkcs12.Encode(rand.Reader, uPrivateKey, uCert, []*x509.Certificate{caCert}, "test")
-//  setupMayBeFatal("Could not create the pkcs#12 certificate bundle", err)
+//  if err != nil {
+//    return fmt.Errorf("Could not create the pkcs#12 certificate bundle: %w", err)
+//  }
 
-//  uPKCS12FileName := uPath+".p12"
-//  err = ioutil.WriteFile(uPKCS12FileName, pfxBytes, 0600)
-//  setupMayBeFatal("Could not write the pkcs#12 certifcate to a file", err)
+//  err = ioutil.WriteFile(user.Pkcs12_Paht, pfxBytes, 0600)
+//  if err != nil {
+//    return fmt.Errorf("Could not write the pkcs#12 certifcate to a file: %w", err)
+//  }
 
 //  openssl pkcs12 -export
 //    -out stephen\@perceptisys-co-uk.p12
@@ -188,22 +195,27 @@ func (user *User) CreateUserCertificate(
 //    -certfile stephen\@perceptisys-co-uk-ca-crt.pem
 
   thePassword, err := password.Generate(8, 2, 0, false, false)
-  setupMayBeFatal("Could not generate a password", err)
-  userPasswords[user.Name] = thePassword
+  if err != nil {
+    return fmt.Errorf("Could not generate a password: %w", err)
+  }
+  user.Password = thePassword
 
   err = os.Setenv("OPENSSL_PASSWORD", thePassword)
-  setupMayBeFatal("Could not set the OPENSSL_PASSWORD environment variable", err)
+  if err != nil {
+    return fmt.Errorf("Could not set the OPENSSL_PASSWORD environment variable: %w", err)
+  }
 
   cmd := exec.Command("openssl", "pkcs12", "-export",
-    "-out", uPKCS12FileName,
-    "-inkey", uPrivateKeyFileName,
-    "-in", uCertificateFileName,
-    "-certfile", uCaCertificateFileName,
+    "-out", user.Pkcs12_Path,
+    "-inkey", user.Key_Path,
+    "-in", user.Cert_Path,
+    "-certfile", user.Ca_Cert_Path,
     "-passout", "env:OPENSSL_PASSWORD",
   )
   outErr, err := cmd.CombinedOutput()
   if err != nil {
     fmt.Printf("ERROR:\n--------------\n%s\n--------------\n", outErr)
-    setupMayBeFatal("Could not create the pkcs#12 file", err)
+    return fmt.Errorf("Could not create the pkcs#12 file: %w", err)
   }
+  return nil
 }

@@ -17,6 +17,7 @@ package CNSetup
 import (
   "encoding/json"
   "fmt"
+  "github.com/diSimplex/ConTeXtNursery/logger"
   "github.com/jinzhu/configor"
   "os"
   "sync"
@@ -27,30 +28,14 @@ import (
 // Configuration variables
 //
 
-type Configuration struct {
+type ConfigType struct {
   Mutex           sync.RWMutex
   
   Federation_Name string `default:"nurseries"`
 
   Key_Size uint `default:"4096"`
 
-  Certificate_Authority struct {
-    Serial_Number  uint
-    Organization   string
-    Country        string
-    Province       string
-    Locality       string
-    Street_Address string
-    Postal_Code    string
-    Email_Address  string
-    Common_Name    string
-
-    Valid_For struct {
-      Years  uint `default:"10"`
-      Months uint `default:"0"`
-      Days   uint `default:"0"`
-    }
-  }
+  Certificate_Authority CAType
 
   Nursery_Defaults    Nursery
 
@@ -62,17 +47,19 @@ type Configuration struct {
   User_Defaults       User
   
   Users             []User
+  
+  csLog             *logger.LoggerType
 }
 
 //type Config struct {
 //  ConfigPriv Configuration
 //}
 
-func CreateConfiguration() *Configuration {
-  return Configuration{}
+func CreateConfiguration(csLog *logger.LoggerType) *ConfigType {
+  return &ConfigType{}
 }
 
-func (config *Configuration) LoadConfiguration(
+func (config *ConfigType) LoadConfiguration(
   configFileName string,
   showConfig     bool,
 ) {
@@ -89,7 +76,6 @@ func (config *Configuration) LoadConfiguration(
   }
 
   // locate the primary Nursery
-  config.Nursery_Defaults.NormalizeNurseryConfig(NurseryDefaults)
   config.Primary_Nursery = &config.Nurseries[0]
   for i, _ := range config.Nurseries {
     if config.Nurseries[i].Is_Primary {
@@ -97,20 +83,36 @@ func (config *Configuration) LoadConfiguration(
          config.Primary_Nursery = &config.Nurseries[i]
       }
     }
-    config.Nurseries[i].NormalizeNurseryConfig(config.Nursery_Defaults)
   }
   config.Primary_Nursery_Url = config.Primary_Nursery.ComputeUrl()
 
-  config.User_Defaults.NormalizeConfiguration(
+  // now normalize the Nursery defaults
+  config.Nursery_Defaults.NormalizeConfig(0, &NurseryDefaults, config)
+  config.Primary_Nursery = &config.Nurseries[0]
+  for i, _ := range config.Nurseries {
+    if config.Nurseries[i].Is_Primary {
+      if ! config.Primary_Nursery.Is_Primary {
+         config.Primary_Nursery = &config.Nurseries[i]
+      }
+    }
+    config.Nurseries[i].NormalizeConfig(i, &config.Nursery_Defaults, config)
+  }
+
+  config.User_Defaults.NormalizeConfig(
+    -1,
     UserDefaults,
-    config.Primary_Nursery_Url,
+    config,
   )
   for i, _ := range config.Users {
-    config.Users[i].NormalizeConfiguration(
+    config.Users[i].NormalizeConfig(
+      i,
       config.User_Defaults,
-      config.Primary_Nursery_Url,
+      config,
     )
   }
+  
+  config.NormalizeCA()
+  
   
   if showConfig {
     configStr, _ := json.MarshalIndent(config, "", "  ")

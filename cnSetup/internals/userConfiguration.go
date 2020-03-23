@@ -21,7 +21,6 @@ import (
   "fmt"
   "os"
   "strings"
-  "sync"
   "text/template"
 )
 
@@ -57,7 +56,7 @@ var (
 
 func (user *User) NormalizeConfig(
   userNum   int,
-  defaults  User,
+  defaults *User,
   config   *ConfigType,
 ) {
   if user.Name == "" && -1 < userNum {
@@ -105,12 +104,7 @@ func (user *User) NormalizeConfig(
 //
 func (user *User) WriteConfiguration(
   config *ConfigType,
-  wg     *sync.WaitGroup,
 ) {
-  if wg != nil {
-    wg.Add(1)
-    defer wg.Done()
-  }
 
   fmt.Printf("\n\nCreating configuration file for the user [%s]\n", user)
 

@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This code has been inspired by: Shane Utt's excellent article:
-//   https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
-
 package CNSetup
 
 import (
@@ -26,29 +23,25 @@ import (
   "encoding/pem"
   "fmt"
   "io/ioutil"
-//  "log"
   "math/big"
   "net"
   "os"
   "path/filepath"
-//  "strings"
-  "sync"
   "time"
 )
 
-/////////////////////////////
-// Client Server Certificates
-
+// Create a Server's' x509 Certificate and associated public/private RSA 
+// keys. The Server certificate and keys are written to disk in the PEM 
+// format. 
+//
+// This code has been inspired by: Shane Utt's excellent article:
+//   https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
+//
 func (nursery *Nursery) CreateNurseryCertificate(
   nurseryNum int,
   ca        *CAType,
   config    *ConfigType,
-  wg        *sync.WaitGroup,
 ) error {
-  if wg != nil {
-    wg.Add(1)
-    defer wg.Done()
-  }
 
   os.MkdirAll(nursery.Cert_Dir, 0755)
   caCertFile, caCertErr := os.Open(nursery.Ca_Cert_Path)
@@ -66,8 +59,8 @@ func (nursery *Nursery) CreateNurseryCertificate(
 
   fmt.Printf("\n\nCreating certificate files for the [%s] Nursery\n", nursery.Name)
 
-  ca.StartUsing()
-  defer ca.StopUsing()
+  ca.StartReading()
+  defer ca.StopReading()
   
   nCert := &x509.Certificate {
     // we need to use DIFFERENT serial numbers for each of CA (1<<32), 
@@ -101,7 +94,7 @@ func (nursery *Nursery) CreateNurseryCertificate(
       x509.KeyUsageKeyAgreement |
       x509.KeyUsageDataEncipherment,
   }
-  ca.StopUsing()
+  ca.StopReading()
 
   // Add the DNSNames and IPAddresses
   for _, aHost := range nursery.Hosts {

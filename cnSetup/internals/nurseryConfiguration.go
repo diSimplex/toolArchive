@@ -119,10 +119,13 @@ func (nursery *Nursery) NormalizeConfig(
   if nursery.Key_Size == 0 {
     nursery.Key_Size = config.Key_Size
   }
+  
+  nursery.Primary_Url = config.Primary_Nursery_Url
 }
 
-func (nursery *Nursery) WriteConfiguration(config *ConfigType) {
-  nursery.Primary_Url = config.Primary_Nursery_Url
+func (nursery *Nursery) WriteConfiguration(
+  config *ConfigType,
+) {
 
   fmt.Printf("\n\nCreating configuration for the [%s] Nursery\n", nursery.Name)
 

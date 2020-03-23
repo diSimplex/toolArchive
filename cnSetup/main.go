@@ -72,27 +72,43 @@ func main() {
   csLog  := logger.CreateLogger("cnSetup")
   config := CNSetup.CreateConfiguration(csLog)
   config.LoadConfiguration(configFileName, showConfig)
-
-  wg.Add(1)
   
+  // Load or (re)Create the CA...
+  // (this MUST be done synchronously)
+  //
   ca  := CNSetup.CreateCA(config)
   err := ca.LoadCAFromFiles()
   if err != nil {
     if createCA {
-      err = ca.CreateNewCA()
+      err = ca.CreateNewCA(config)
       csLog.MayBeFatal("Could not create a new CA", err)
     } else {
       csLog.MayBeFatal("Could not load existing CA from files\n\tDid you mean to use the -createCA command line switch?\n", err)
     }
   }
 
-  // now create each Nursery's certificates as well as configuration
+  // The creation of the Nursery and User certificates and configuration
+  // can take place asynchronously...
+  //
+  wg.Add(1)
+
+  // We asynchronously create each Nursery's certificates as well as 
+  // configuration 
+  //
   for i, aNursery := range config.Nurseries {
-    aNursery.CreateNurseryCertificate(i, ca, config, &wg)
-    aNursery.WriteConfiguration(config)
+    doANursery := func(){
+      wg.Add(1)
+      defer wg.Done()
+      aNursery.CreateNurseryCertificate(i, ca, config)
+      aNursery.WriteConfiguration(config)
+    }
+    go doANursery()
   }
 
-  // start by loading in the existing user passwords
+  // Now deal with the users...
+  //
+  // ... start by loading in the existing user passwords
+  //
   passwordFile, err := os.Open("users/passwords")
   if err == nil {
     scanner := bufio.NewScanner(passwordFile)
@@ -107,14 +123,26 @@ func main() {
     passwordFile.Close()
   }
 
-  // now create each User's certificates
+  // Now create each User's certificates and cnTypeSetter configuration
+  //
   for i, aUser := range config.Users {
-    aUser.Password = userPasswords[aUser.Name]
-    aUser.CreateUserCertificate(i, ca, config, &wg)
-    aUser.WriteConfiguration(config, &wg)
-  }
+    doAUser := func() {
+      wg.Add(1)
+      defer wg.Done()
+      aUser.Password = userPasswords[aUser.Name]
+      aUser.CreateUserCertificate(i, ca, config) 
+      aUser.WriteConfiguration(config)
+    }
+    go doAUser()
+  } 
 
-  // now write out the file of user passwords
+  // Done...
+  wg.Add(-1)
+  // Wait for all go routines
+  wg.Wait()
+
+  // Now write out the file of user passwords
+  //
   passwordFile, err = os.Create("users/passwords")
   setupMayBeFatal("Could not open [users/passwords] file", err)
   for _, aUser := range config.Users {
@@ -125,6 +153,4 @@ func main() {
   fmt.Printf("\nThe automatically generated passwords for each user's PKCS#12 file\n")
   fmt.Printf("  can be found in the file [users/passwords]\n\n")
   
-  wg.Add(-1)
-  wg.Wait()
 }

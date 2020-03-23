@@ -21,34 +21,42 @@ import (
   "github.com/jinzhu/configor"
   "os"
   "sync"
-  "time"
 )
 
-//////////////////////////
-// Configuration variables
+// ConfigType contains the configuration for the whole cnSetup command. 
 //
-
+//
+// Its associated methods are responsible for loading configuration for a 
+// Federation of ConTeXt Nurseries, descriptions of all nurseries and 
+// users, as well as maintaining internal copies of the CA 
+//
 type ConfigType struct {
-  Mutex           sync.RWMutex
-  
-  Federation_Name string `default:"nurseries"`
 
-  Key_Size uint `default:"4096"`
+  // Name of the Federation of ConTeXt Nurseries
+  //
+  Federation_Name       string `default:"nurseries"`
 
+  // Certificate information
+  //
+  Key_Size              uint `default:"4096"`
   Certificate_Authority CAType
 
-  Nursery_Defaults    Nursery
+  // Nurseries
+  //
+  Nursery_Defaults      Nursery
+  Nurseries           []Nursery
+  Primary_Nursery      *Nursery
+  Primary_Nursery_Url   string
 
-  Primary_Nursery    *Nursery
-  Primary_Nursery_Url string
+  // Users
+  //
+  User_Defaults         User
+  Users               []User
   
-  Nurseries         []Nursery
-
-  User_Defaults       User
-  
-  Users             []User
-  
-  csLog             *logger.LoggerType
+  // Auxilary fields for access and logging
+  //
+  Mutex                 sync.RWMutex
+  CSLog                *logger.LoggerType
 }
 
 //type Config struct {
@@ -63,16 +71,16 @@ func (config *ConfigType) LoadConfiguration(
   configFileName string,
   showConfig     bool,
 ) {
+  config.Mutex.Lock()
+  defer config.Mutex.Unlock()
+  
   configor.Load(&config, configFileName)
   
-    // make sure the Serial_Number is constantly increasing...
-  //
-  if config.Certificate_Authority.Serial_Number == 0 {
-    config.Certificate_Authority.Serial_Number = uint(time.Now().Unix())
-  }
-
+  config.Certificate_Authority.NormalizeCA(config)
+  
   if config.Federation_Name == "" {
-    config.Federation_Name = "ConTeXt Nurseries"
+    config.csLog.Logf("You MUST specify a Federation Name")
+    os.Exit(-1)
   }
 
   // locate the primary Nursery
@@ -100,20 +108,17 @@ func (config *ConfigType) LoadConfiguration(
 
   config.User_Defaults.NormalizeConfig(
     -1,
-    UserDefaults,
+    &UserDefaults,
     config,
   )
   for i, _ := range config.Users {
     config.Users[i].NormalizeConfig(
       i,
-      config.User_Defaults,
+      &config.User_Defaults,
       config,
     )
   }
-  
-  config.NormalizeCA()
-  
-  
+    
   if showConfig {
     configStr, _ := json.MarshalIndent(config, "", "  ")
     fmt.Print(string(configStr))

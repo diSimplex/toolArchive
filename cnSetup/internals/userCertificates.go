@@ -28,12 +28,8 @@ import (
   "github.com/sethvargo/go-password/password"
   "io/ioutil"
   "math/big"
-//  "log"
   "os"
   "os/exec"
-//  "software.sslmate.com/src/go-pkcs12"
-//  "strings"
-  "sync"
   "time"
 )
 
@@ -52,12 +48,7 @@ func (user *User) CreateUserCertificate(
   userNum int,
   ca     *CAType,
   config *ConfigType,
-  wg     *sync.WaitGroup,
 ) error {
-  if wg != nil {
-    wg.Add(1)
-    defer wg.Done()
-  }
 
   // TODO sort this out with user.NormalizeConfiguration
   os.MkdirAll(user.Cert_Dir, 0755)
@@ -78,8 +69,8 @@ func (user *User) CreateUserCertificate(
 
   fmt.Printf("\n\nCreating certificate files for the user [%s]\n", user.Name)
 
-  ca.StartUsing()
-  defer ca.StopUsing()
+  ca.StartReading()
+  defer ca.StopReading()
   
   uCert := &x509.Certificate {
     // we need to use DIFFERENT serial numbers for each of CA (1<<32),
@@ -113,7 +104,7 @@ func (user *User) CreateUserCertificate(
       x509.KeyUsageKeyAgreement |
       x509.KeyUsageDataEncipherment,
   }
-  ca.StopUsing()
+  ca.StopReading()
   
   uPrivateKey, err := rsa.GenerateKey(rand.Reader, int(user.Key_Size))
   if err != nil {

@@ -32,11 +32,13 @@ import (
   "time"
 )
 
-////////////////////////
-// Certificate Authority
+// CAType contains a Certificate Authority's x509 certificate as well as 
+// public/private RSA keys, as well as auxilary fields to control where 
+// external PEM files can be found or stored. 
 //
-
 type  CAType struct {
+  // Standard x509 fields
+  //
   Serial_Number  uint
   Organization   string
   Country        string
@@ -46,41 +48,48 @@ type  CAType struct {
   Postal_Code    string
   Email_Address  string
   Common_Name    string
-
+  //
   Valid_For struct {
     Years  uint `default:"10"`
     Months uint `default:"0"`
     Days   uint `default:"0"`
   }
-  
+ 
+  // Auxilary fields required to write CA files
+  //
   Dir            string
   Cert_File_Name string
   Key_File_Name  string
   
+  // Auxilary fields required to create, contain and manage access 
+  // to the actual certificates and keys. 
+  //
+  Key_Size       uint
+  Mutex         *sync.RWMutex
   Cert          *x509.Certificate
   PrivateKey    *rsa.PrivateKey
-  
-  federationName string
-  keySize        uint
-  
-  mutex          *sync.RWMutex
 }
 
-func (config *ConfigType) NormalizeCA() {
+// Normalize the Certificate Authority auxilary fields.
+//
+func (ca *CAType) NormalizeCA(config *ConfigType) {
+  // Make sure the Serial_Number is constantly increasing...
+  //
+  if ca.Serial_Number == 0 { ca.Serial_Number = uint(time.Now().Unix()) }
+
   if config.Federation_Name != "" {
-     config.Certificate_Authority.federationName = config.Federation_Name
      
-    if config.Certificate_Authority.Dir == "" {
-      config.Certificate_Authority.Dir = "ca/" + config.Federation_Name
+    if ca.Dir == "" {
+      ca.Dir = "ca/" + config.Federation_Name
     }
-    if config.Certificate_Authority.Cert_File_Name == "" {
-      config.Certificate_Authority.Cert_File_Name = 
-        config.Certificate_Authority.Dir + "/" +
+    if ca.Cert_File_Name == "" {
+      ca.Cert_File_Name = 
+        ca.Dir + "/" +
         config.Federation_Name + "-ca-crt.pem"
     }
-    if config.Certificate_Authority.Key_File_Name == "" {
-     config.Certificate_Authority.Key_File_Name = 
-       config.Certificate_Authority.Dir + "/" +
+    if ca.Key_File_Name == "" {
+     ca.Key_File_Name = 
+       ca.Dir + "/" +
        config.Federation_Name + "-ca-key.pem"
     }
   } else {
@@ -89,28 +98,68 @@ func (config *ConfigType) NormalizeCA() {
   }
   
   if 1023 < config.Key_Size {
-    config.Certificate_Authority.keySize = config.Key_Size
+    if ca.Key_Size == 0 { ca.Key_Size = config.Key_Size }
   } else {
     config.csLog.Logf("You MUST specify a Key_Size of at least 1024")
     os.Exit(-1)
   }
 }
 
+// Create the Certificate Authority Structure (only) from the details in 
+// the configuraiton. 
+//
+// This code has been inspired by: Shane Utt's excellent article:
+//   https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
+//
 func CreateCA(config *ConfigType) *CAType {
   newCA := config.Certificate_Authority
   return &newCA
 }
 
-func (ca *CAType) StartUsing() {
-  ca.mutex.Lock()
+// Start changing the Certificate Authority by obtaining a (Write) lock on 
+// the CA Mutex.
+// 
+// This requests a complete lock on the CA values.
+// 
+// If you only need to READ these values, consider using the StartReading 
+// method instead. 
+//
+func (ca *CAType) StartChanging() {
+  ca.Mutex.Lock()
 }
 
-func (ca *CAType) StopUsing() {
-  ca.mutex.Unlock()
+// Stop changing the Certificate Authority by releasing the (Write) lock on
+// the CA Mutex
+//
+func (ca *CAType) StopChanging() {
+  ca.Mutex.Unlock()
 }
 
-func (ca *CAType) CreateNewCA() error {
-  fmt.Print("\nCreating a new Certificate Authority for [%s]\n", ca.federationName)
+// Start reading the values in the Certificate Authority by obtaining a 
+// (Read) lock on the CA Mutex.
+//
+// IT IS CRITICAL THAT NO VALUES ARE CHANGED. 
+//
+// If you need to CHANGE a value, then use the StartChanging method 
+// instead. 
+//
+func (ca *CAType) StartReading() {
+  ca.Mutex.RLock()
+}
+
+// Stop reading the values in the Certificate Authority by releasing the 
+// (Read) lock on the CA Mutex. 
+//
+func (ca *CAType) StopReading() {
+  ca.Mutex.RUnlock()
+}
+
+// Create a new Certificate Authority by creating a totally new 
+// self-signed x509 certificate and associated public/private RSA keys. 
+//
+func (ca *CAType) CreateNewCA(config *ConfigType) error {
+  ca.Mutex.Lock()
+  fmt.Print("\nCreating a new Certificate Authority for [%s]\n", config.Federation_Name)
 
   ca.Cert = &x509.Certificate {
     // we need to use DIFFERENT serial numbers for each of CA (1<<32), 
@@ -141,7 +190,7 @@ func (ca *CAType) CreateNewCA() error {
   }
 
   var err error
-  ca.PrivateKey, err = rsa.GenerateKey(rand.Reader, int(ca.keySize))
+  ca.PrivateKey, err = rsa.GenerateKey(rand.Reader, int(ca.Key_Size))
   if err != nil {
     return fmt.Errorf("could not generate rsa key for CA: %w", err)
   }
@@ -159,8 +208,11 @@ func (ca *CAType) CreateNewCA() error {
   return nil
 }
 
-func (ca *CAType) WriteCAFiles() error {
-  caSubject := "Subject: ConTeXt Nursery " + ca.federationName + " Certificate Authority\n"
+// Write the Certificate Authority's x509 certificate and RSA keys to files
+// on the disk. 
+//
+func (ca *CAType) WriteCAFiles(config *ConfigType) error {
+  caSubject := "Subject: ConTeXt Nursery " + config.Federation_Name + " Certificate Authority\n"
   caDate    := "Date:    "+time.Now().String()+"\n"
 
   os.MkdirAll(ca.Dir, 0755)
@@ -198,6 +250,9 @@ func (ca *CAType) WriteCAFiles() error {
   return nil
 }
 
+// Attempt to load an existing Certificate Authority from PEM files 
+// containing x509 certificates and public/private RSA keys. 
+//
 func (ca *CAType) LoadCAFromFiles() error {
   caCertBytes, err := ioutil.ReadFile(ca.Cert_File_Name)
   if err != nil {

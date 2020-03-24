@@ -37,7 +37,7 @@ import (
 // This code has been inspired by: Shane Utt's excellent article:
 //   https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
 //
-func (nursery *Nursery) CreateNurseryCertificate(
+func (nursery *NurseryType) CreateNurseryCertificate(
   nurseryNum int,
   ca        *CAType,
   config    *ConfigType,

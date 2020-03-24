@@ -23,45 +23,80 @@ import (
   "fmt"
   "github.com/diSimplex/ConTeXtNursery/cnSetup/internals"
   "github.com/diSimplex/ConTeXtNursery/logger"
-  "log"
   "os"
-//  "time"
+  "runtime"
   "strings"
   "sync"
-// temp
-//  "bytes"
-//  "crypto/x509"
-//  "encoding/pem"
-//  "io/ioutil"
+//  "time"
 )
 
-
+// A User.Name->User.Password mapping used to write out the 
+// "users/password" file. 
+//
 var userPasswords = map[string]string{}
 
+// Flags for use by the cnSetup commands command line options.
+//
 var createCA       bool
 var configFileName string
 var showConfig     bool
 
-/////////////////////////////
-// Logging and Error handling
+// Flag descriptions and defaults as used by the cnSetup command line 
+// options. 
 //
-func setupMayBeFatal(logMessage string, err error) {
-  if err != nil {
-    log.Fatalf("cnSetup(FATAL): %s ERROR: %s\n", logMessage, err)
-  }
+const (
+  configFileNameDefault =  "nurseries.yaml"
+  configFileNameUsage   =  "The configuration file to load"
+  showConfigDefault     =  false
+  showConfigUsage       =  "Show the loaded configuration"
+)
+
+func WorkOnNursery(
+  i         int,
+  aNursery *CNSetup.NurseryType,
+  ca       *CNSetup.CAType,
+  config   *CNSetup.ConfigType,
+  wg        sync.WaitGroup,
+) {
+  defer wg.Done()
+  
+  fmt.Printf("(%d)started on nursery: [%s]\n", i, aNursery.Name)
+  aNursery.CreateNurseryCertificate(i, ca, config)
+  aNursery.WriteConfiguration(config)
+  fmt.Printf("(%d)finished on nursery: [%s]\n", i, aNursery.Name)
 }
 
+func WorkOnUser(
+  i       int,
+  aUser  *CNSetup.UserType,
+  ca     *CNSetup.CAType,
+  config *CNSetup.ConfigType,
+  wg      sync.WaitGroup,
+) {
+  defer wg.Done()
+  
+  fmt.Printf("(%d)started on user: [%s]\n", i, aUser.Name)
+  aUser.Password = userPasswords[aUser.Name]
+  aUser.CreateUserCertificate(i, ca, config) 
+  aUser.WriteConfiguration(config)
+  fmt.Printf("(%d)finished on user: [%s]\n", i, aUser.Name)
+}
+
+// Orchestrate the (optional) (re)creation of a (self-signed) Certificate 
+// Authority, as well as Certificates and Configuration for each Nursery 
+// and User. 
+//
+// After (optionally) (re)creating the Certificate Authority, we use 
+// sync.WaitGroups to allow the creation of the Certificates (and 
+// configuration) for each Nursery and User to occur in parallel. 
+//
 func main() {
   var (
     wg sync.WaitGroup
   )
 
-  const (
-    configFileNameDefault =  "nurseries.yaml"
-    configFileNameUsage   =  "The configuration file to load"
-    showConfigDefault     =  false
-    showConfigUsage       =  "Show the loaded configuration"
-  )
+  // Setup the command line options (using the GoLang flag package)
+  //
   flag.BoolVar(&createCA, "createCA", false, "Should the Certificate Authority be created if the crt and key files can't be loaded?")
   flag.StringVar(&configFileName, "config", configFileNameDefault, configFileNameUsage)
   flag.StringVar(&configFileName, "c", configFileNameDefault, configFileNameUsage)
@@ -69,9 +104,15 @@ func main() {
   flag.BoolVar(&showConfig, "s", showConfigDefault, showConfigUsage)
   flag.Parse()
 
+  // Setup logging and load the configuration.
+  //
   csLog  := logger.CreateLogger("cnSetup")
   config := CNSetup.CreateConfiguration(csLog)
   config.LoadConfiguration(configFileName, showConfig)
+  
+  fmt.Printf("numCPU: %d\n", runtime.NumCPU())
+  fmt.Printf("GOMAXPROCS: %d\n", runtime.GOMAXPROCS(-1))
+  //os.Exit(-1)
   
   // Load or (re)Create the CA...
   // (this MUST be done synchronously)
@@ -96,13 +137,9 @@ func main() {
   // configuration 
   //
   for i, aNursery := range config.Nurseries {
-    doANursery := func(){
-      wg.Add(1)
-      defer wg.Done()
-      aNursery.CreateNurseryCertificate(i, ca, config)
-      aNursery.WriteConfiguration(config)
-    }
-    go doANursery()
+    fmt.Printf("(%d)working on nursery: [%s]\n", i, aNursery.Name)
+    wg.Add(1)
+    go WorkOnNursery(i, &config.Nurseries[i], ca, config, wg)
   }
 
   // Now deal with the users...
@@ -126,16 +163,13 @@ func main() {
   // Now create each User's certificates and cnTypeSetter configuration
   //
   for i, aUser := range config.Users {
-    doAUser := func() {
-      wg.Add(1)
-      defer wg.Done()
-      aUser.Password = userPasswords[aUser.Name]
-      aUser.CreateUserCertificate(i, ca, config) 
-      aUser.WriteConfiguration(config)
-    }
-    go doAUser()
+    fmt.Printf("(%d)working on user: [%s]\n", i, aUser.Name)
+    wg.Add(1)
+    go WorkOnUser(i, &config.Users[i], ca, config, wg)
   } 
 
+//  time.Sleep(100 * time.Second)
+  
   // Done...
   wg.Add(-1)
   // Wait for all go routines
@@ -144,7 +178,7 @@ func main() {
   // Now write out the file of user passwords
   //
   passwordFile, err = os.Create("users/passwords")
-  setupMayBeFatal("Could not open [users/passwords] file", err)
+  csLog.MayBeFatal("Could not open [users/passwords] file", err)
   for _, aUser := range config.Users {
     passwordFile.WriteString(aUser.Name+"\t"+aUser.Password+"\n")
   }
@@ -152,5 +186,4 @@ func main() {
   os.Chmod("users/passwords", 0600)
   fmt.Printf("\nThe automatically generated passwords for each user's PKCS#12 file\n")
   fmt.Printf("  can be found in the file [users/passwords]\n\n")
-  
 }

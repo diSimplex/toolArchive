@@ -41,10 +41,10 @@ import (
 // We provide the name of the user (usually one of their email addresses), 
 // a user unique int (used to ensure the user's serial number is unique). 
 //
-// We also provide an optional WaitGroup which, if not nil, is used to 
-// allow this function to be called asynchronously as a go routine. 
+// This code has been inspired by: Shane Utt's excellent article:
+//   https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
 //
-func (user *User) CreateUserCertificate(
+func (user *UserType) CreateUserCertificate(
   userNum int,
   ca     *CAType,
   config *ConfigType,

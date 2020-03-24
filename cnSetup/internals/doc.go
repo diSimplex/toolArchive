@@ -14,7 +14,18 @@
 
 /*
 
-  ConTeXt Setup command internals
+ConTeXt Setup command internals.
   
+The cnSetup command consists of methods to manage:
+  
+    1. Configuraiton (ConfigType)
+    2. CertificateAuthority (CAType)
+    3. Nursery Certificates and Configuration (NurseryType)
+    4. User Certificates and Configuration (UserType)
+  
+This CNSetup package is used by the cnSetup command to orchestrate the 
+creation of a Certificate Authority, as well as Certificates and 
+Configuration for each Nursery and User. 
+
 */
 package CNSetup

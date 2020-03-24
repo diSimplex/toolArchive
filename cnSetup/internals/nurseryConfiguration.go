@@ -25,7 +25,14 @@ import (
   "text/template"
 )
 
-type Nursery struct {
+// The NurseryType contains the information required to:
+//
+//   1. Create x509 Server Certificates as well as associated 
+//      public/private RSA keys.
+//
+//   2. Write out the YAML configuration files used by each cnNursery. 
+//
+type NurseryType struct {
   Name          string
   Host          string
   Hosts         []string
@@ -47,7 +54,7 @@ type Nursery struct {
 }
 
 var (
-  NurseryDefaults = Nursery{
+  NurseryDefaults = NurseryType{
     "",                       // Name
     "",                       // Host
     []string{},               // Hosts
@@ -69,13 +76,18 @@ var (
   }
 )
 
-func (nursery *Nursery) ComputeUrl() string {
+// Compute the (control) URL associated with a given Nursery.
+//
+func (nursery *NurseryType) ComputeUrl() string {
   return "https://"+nursery.Hosts[0]+":"+strconv.Itoa(int(nursery.Port))
 }
 
-func (nursery *Nursery) NormalizeConfig(
+// Normalize the fields of a given NurseryType (using the defaults 
+// provided). 
+//
+func (nursery *NurseryType) NormalizeConfig(
   nurseryNum int,
-  defaults  *Nursery,
+  defaults  *NurseryType,
   config    *ConfigType,
 ) {
   if nursery.Interface    == "" { nursery.Interface    = defaults.Interface }
@@ -119,11 +131,18 @@ func (nursery *Nursery) NormalizeConfig(
   if nursery.Key_Size == 0 {
     nursery.Key_Size = config.Key_Size
   }
-  
-  nursery.Primary_Url = config.Primary_Nursery_Url
 }
 
-func (nursery *Nursery) WriteConfiguration(
+// Set the Nursery's Primary Url (of the whole federation)
+//
+func (nursery *NurseryType) SetPrimaryUrl(primaryUrl string) {
+  nursery.Primary_Url = primaryUrl
+}
+
+// Write out the YAML configuration file requred to run a given cnNursery 
+// command. 
+//
+func (nursery *NurseryType) WriteConfiguration(
   config *ConfigType,
 ) {
 
@@ -151,13 +170,13 @@ actions_dir:  "{{.Actions_Dir}}"
 `
 
   yamlTemplate, err := template.New("yamlTemplate").Parse(yamlTemplateStr)
-  config.csLog.MayBeFatal("Could not parse the yaml template", err)
+  config.CSLog.MayBeFatal("Could not parse the yaml template", err)
 
   yamlFile, err := os.Create(nursery.Config_Path)
-  config.csLog.MayBeFatal("Could not open the config file for writing", err)
+  config.CSLog.MayBeFatal("Could not open the config file for writing", err)
 
   err = yamlTemplate.Execute(yamlFile, nursery)
 
   err = yamlFile.Close()
-  config.csLog.MayBeFatal("Could not close the config file", err)
+  config.CSLog.MayBeFatal("Could not close the config file", err)
 }

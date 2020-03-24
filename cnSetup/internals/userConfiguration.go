@@ -24,7 +24,14 @@ import (
   "text/template"
 )
 
-type User struct {
+// The UserType contains the information required to:
+//
+//   1. Create x509 Client Certificates as well as associated
+//      public/private RSA keys.
+//
+//   2. Write out the YAML configuration files used by each cnTypeSetter.
+//
+type UserType struct {
   Name          string
   Cert_Dir      string
   Ca_Cert_Path  string
@@ -39,7 +46,7 @@ type User struct {
 }
 
 var (
-  UserDefaults = User{
+  UserDefaults = UserType{
     "", // Name
     "", // Cert_Dir
     "", // Ca_Cert_Path
@@ -54,13 +61,15 @@ var (
   }
 )
 
-func (user *User) NormalizeConfig(
+// Normalize the fields of a given UserType (using the defaults provided). 
+//
+func (user *UserType) NormalizeConfig(
   userNum   int,
-  defaults *User,
+  defaults *UserType,
   config   *ConfigType,
 ) {
   if user.Name == "" && -1 < userNum {
-    config.csLog.Logf("You MUST supply a name for all users!")
+    config.CSLog.Logf("You MUST supply a name for all users!")
     os.Exit(-1)
   }
   
@@ -99,12 +108,7 @@ func (user *User) NormalizeConfig(
 // We provide the user, the user defaults as well as the primaryUrl of 
 // this federation of Nurseries. 
 //
-// We also provide an optional WaitGroup which, if not nil, is used to 
-// allow this function to be called asynchronously as a go routine. 
-//
-func (user *User) WriteConfiguration(
-  config *ConfigType,
-) {
+func (user *UserType) WriteConfiguration(config *ConfigType) {
 
   fmt.Printf("\n\nCreating configuration file for the user [%s]\n", user)
 
@@ -122,13 +126,13 @@ cert_path:    "{{.Cert_Path}}"
 key_path:     "{{.Key_Path}}"
 `
   yamlTemplate, err := template.New("yamlTemplate").Parse(yamlTemplateStr)
-  config.csLog.MayBeFatal("Could not parse the yaml template", err)
+  config.CSLog.MayBeFatal("Could not parse the yaml template", err)
 
   yamlFile, err := os.Create(user.Config_Path)
-  config.csLog.MayBeFatal("Could not open the config file for writing", err)
+  config.CSLog.MayBeFatal("Could not open the config file for writing", err)
 
   err = yamlTemplate.Execute(yamlFile, user)
 
   err = yamlFile.Close()
-  config.csLog.MayBeFatal("Could not close the config file", err)
+  config.CSLog.MayBeFatal("Could not close the config file", err)
 }

@@ -65,7 +65,7 @@ type  CAType struct {
   // to the actual certificates and keys. 
   //
   Key_Size       uint
-  Mutex         *sync.RWMutex
+  Mutex         sync.RWMutex
   Cert          *x509.Certificate
   PrivateKey    *rsa.PrivateKey
 }
@@ -93,23 +93,20 @@ func (ca *CAType) NormalizeCA(config *ConfigType) {
        config.Federation_Name + "-ca-key.pem"
     }
   } else {
-    config.csLog.Logf("You MUST specify a Federation Name")
+    config.CSLog.Logf("You MUST specify a Federation Name")
     os.Exit(-1)
   }
   
   if 1023 < config.Key_Size {
     if ca.Key_Size == 0 { ca.Key_Size = config.Key_Size }
   } else {
-    config.csLog.Logf("You MUST specify a Key_Size of at least 1024")
+    config.CSLog.Logf("You MUST specify a Key_Size of at least 1024")
     os.Exit(-1)
   }
 }
 
 // Create the Certificate Authority Structure (only) from the details in 
 // the configuraiton. 
-//
-// This code has been inspired by: Shane Utt's excellent article:
-//   https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
 //
 func CreateCA(config *ConfigType) *CAType {
   newCA := config.Certificate_Authority
@@ -157,9 +154,12 @@ func (ca *CAType) StopReading() {
 // Create a new Certificate Authority by creating a totally new 
 // self-signed x509 certificate and associated public/private RSA keys. 
 //
+// This code has been inspired by: Shane Utt's excellent article:
+//   https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
+//
 func (ca *CAType) CreateNewCA(config *ConfigType) error {
   ca.Mutex.Lock()
-  fmt.Print("\nCreating a new Certificate Authority for [%s]\n", config.Federation_Name)
+  fmt.Printf("\nCreating a new Certificate Authority for [%s]\n", config.Federation_Name)
 
   ca.Cert = &x509.Certificate {
     // we need to use DIFFERENT serial numbers for each of CA (1<<32), 

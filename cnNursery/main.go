@@ -18,15 +18,15 @@ import (
   "crypto/tls"
   "crypto/x509"
   "flag"
-  "fmt"
   "github.com/diSimplex/ConTeXtNursery/clientConnection"
   "github.com/diSimplex/ConTeXtNursery/cnNursery/internals"
+  "github.com/diSimplex/ConTeXtNursery/interfaces/action"
   "github.com/diSimplex/ConTeXtNursery/interfaces/control"
   "github.com/diSimplex/ConTeXtNursery/interfaces/discovery"
   "github.com/diSimplex/ConTeXtNursery/logger"
   "github.com/diSimplex/ConTeXtNursery/webserver"
   "math/rand"
-  "os"
+  "runtime"
   "time"
 )
 
@@ -34,10 +34,6 @@ var configFileName string
 var showConfig     bool
 var serverCert     tls.Certificate
 var caCertPool     *x509.CertPool
-var cnInfoMap      *internals.CNInfoMap
-var cnState        *internals.CNState
-
-var cnLog = logger.CreateLogger("cnNursery")
 
 func main() {
   const (
@@ -52,31 +48,29 @@ func main() {
   flag.BoolVar(&showConfig, "s", showConfigDefault, showConfigUsage)
   flag.Parse()
 
-  loadConfiguration(configFileName)
+  cnLog  := logger.CreateLogger("cnNursery")
+  cnLog.SetPrintStack(true)
+  
+  config := CNNurseries.CreateConfiguration(cnLog)
+  config.LoadConfiguration(configFileName, showConfig)
 
-  if showConfig {
-    configBytes, _ := configToJsonBytes()
-    fmt.Printf("%s\n", string(configBytes))
-    os.Exit(0)
-  }
-
+  cnLog.Logf("cnNursery: %s started", config.Name)
+  cnLog.Logf("numCPU: %d\n", runtime.NumCPU())
+  cnLog.Logf("GOMAXPROCS: %d\n", runtime.GOMAXPROCS(-1))
+  
   // seed the math/rand random number generator with a "random" seed
   rand.Seed(time.Now().Unix())
-
-  cnLog.SetPrintStack(true)
 
   ////////////////////////////////
   // initialize interfaces
   //   BEFORE we start any threads
-  lConfig := getConfig()
-
   cc := clientConnection.CreateClientConnection(
-    lConfig.Ca_Cert_Path, lConfig.Cert_Path, lConfig.Key_Path,
+    config.Ca_Cert_Path, config.Cert_Path, config.Key_Path,
     cnLog,
   )
 
   ws := webserver.CreateWebServer(
-    lConfig.Interface, lConfig.Port, `
+    config.Interface, config.Port, `
 
 The cnNursery process provides a RESTful interface to the federation of
 ConTeXt Nurseries.
@@ -85,25 +79,28 @@ Each ConTeXt Nursery in the federation is capable of managing the type
 setting of one or more ConTeXt based (sub)documents in parallel.
 
 `,
-  lConfig.Ca_Cert_Path, lConfig.Cert_Path, lConfig.Key_Path,
+  config.Ca_Cert_Path, config.Cert_Path, config.Key_Path,
   cnLog,
   )
 
-//  handleControl()
-
-  cnInfoMap = CreateCNInfoMap()
+  cnActions := CNNurseries.CreateActionsState(config, ws, cc)
+  action.AddActionInterface(ws, cnActions)
+  
+  cnInfoMap := CNNurseries.CreateCNInfoMap(config)
   discovery.AddDiscoveryInterface(ws, cnInfoMap)
 
-  cnState = CreateCNState(ws, cc)
+  cnState := CNNurseries.CreateCNState(config, cnInfoMap, ws, cc)
   control.AddControlInterface(ws, cnState)
 
   /////////////////////////////////////
   // Start client and webServer threads
 
-  go sendPeriodicHeartBeats(cc)
+  // periodically send out a heart beat message the the federation's
+  // primary cnNursery 
+  go CNNurseries.SendPeriodicHeartBeats(config, cnState, cnInfoMap, cc)
 
-  go grimReaper(cc)  // periodically cull Nurseries which we can not connect to
-
+  // periodically cull Nurseries to which we can no longer connect to
+  go CNNurseries.GrimReaper(config, cnInfoMap, cc)
+  
   ws.RunWebServer()
-
 }

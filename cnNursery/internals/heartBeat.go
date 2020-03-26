@@ -24,26 +24,37 @@ import (
   "time"
 )
 
-///////////////////////
-// Heart Beat interface
-
-func sendPeriodicHeartBeats(cc *clientConnection.CC) {
-  lConfig := getConfig()
-
+// Implements the heart beat go routine.
+//
+// Periodically attempt to contact each cnNursery in the cnInfoMap. If a 
+// given cnNursery does not respond, then it is deleted from the 
+// cnInfoMap. 
+//
+// READS config;
+// READS cnState;
+// READS cnInfoMap;
+// READS cc;
+//
+func SendPeriodicHeartBeats(
+  config    *ConfigType,
+  cnState   *CNState,
+  cnInfoMap *CNInfoMap,
+  cc        *clientConnection.CC,
+) {
   for {
     time.Sleep(time.Duration(rand.Int63n(10)) * time.Second)
-    cnLog.Logf("\n\n\nheartBeat state: [%s]\n\n\n", cnState.GetState())
+    config.CNLog.Logf("\n\n\nheartBeat state: [%s]\n\n\n", cnState.GetState())
     ni := discovery.NurseryInfo{
-      Name: lConfig.Name,
-      Port: lConfig.Port,
-      Base_Url: lConfig.Base_Url,
+      Name: config.Name,
+      Port: config.Port,
+      Base_Url: config.Base_Url,
       State: cnState.GetState(),
       Processes: 1,
     }
 
     loads, err := load.Avg()
     if err != nil {
-      cnLog.MayBeError("Could not read the load average", err)
+      config.CNLog.MayBeError("Could not read the load average", err)
       loads = &load.AvgStat{ Load1: 1.0, Load5: 1.0, Load15: 1.0, }
     }
     ni.Load.Load1  = loads.Load1
@@ -52,7 +63,7 @@ func sendPeriodicHeartBeats(cc *clientConnection.CC) {
 
     cpuInfo, err := cpu.Info()
     if err != nil {
-      cnLog.MayBeError("Could not read the cpu information", err)
+      config.CNLog.MayBeError("Could not read the cpu information", err)
       cpuInfo = []cpu.InfoStat{ cpu.InfoStat{ Cores: 1, Mhz: 1000 } }
     }
     ni.Cores     = uint(len(cpuInfo))
@@ -60,7 +71,7 @@ func sendPeriodicHeartBeats(cc *clientConnection.CC) {
 
     virtMem, err := mem.VirtualMemory()
     if err != nil {
-      cnLog.MayBeError("Could not read the virtual memory information", err)
+      config.CNLog.MayBeError("Could not read the virtual memory information", err)
       virtMem = &mem.VirtualMemoryStat{ Total: 1000, Used: 1000 }
     }
     ni.Memory.Total = virtMem.Total
@@ -68,15 +79,15 @@ func sendPeriodicHeartBeats(cc *clientConnection.CC) {
 
     swapMem, err := mem.SwapMemory()
     if err != nil {
-      cnLog.MayBeError("Could not read the swap memory information", err)
+      config.CNLog.MayBeError("Could not read the swap memory information", err)
       swapMem = &mem.SwapMemoryStat{ Total: 1000, Used: 1000 }
     }
     ni.Swap.Total = swapMem.Total
     ni.Swap.Used  = swapMem.Used
 
-    cnLog.Json("beat request ", "ni", ni)
-    niInfoMap := discovery.SendDiscoveryMessage(lConfig.Primary_Url, ni, cc)
-    cnLog.Json("beat response ", "niInfoMap", niInfoMap)
+    config.CNLog.Json("beat request ", "ni", ni)
+    niInfoMap := discovery.SendDiscoveryMessage(config.Primary_Url, ni, cc)
+    config.CNLog.Json("beat response ", "niInfoMap", niInfoMap)
     cnInfoMap.ActionUpdateNurseryInfoMap(niInfoMap)
   }
 

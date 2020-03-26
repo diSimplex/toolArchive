@@ -21,9 +21,22 @@ import (
   "time"
 )
 
-func grimReaper(cc *clientConnection.CC) {
+// Implements the grimReaper go routine.
+//
+// If this is the primary cnNursery of a federation, periodically attempt 
+// to contact each cnNursery in the cnInfoMap. If a given cnNursery does 
+// not respond, then it is deleted from the cnInfoMap. 
+//
+// READS config;
+// READS cc;
+//
+func GrimReaper(
+  config    *ConfigType,
+  cnInfoMap *CNInfoMap,
+  cc        *clientConnection.CC,
+) {
   // if we are not the primary Nursery... don't do anything...
-  if ! isPrimary() { return }
+  if ! config.IsPrimary() { return }
 
   for {
     time.Sleep(time.Duration(rand.Int63n(20)) * time.Second)

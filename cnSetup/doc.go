@@ -14,8 +14,9 @@
 
 /*
 
-ConTeXt Nurseries Setup command sets up the configuration required by the 
-cnNursery and cnTypeSetting commands as well as each user's web browser. 
+ConTeXt Nurseries Setup command (cnSetup) sets up the configuration 
+required by the cnNursery and cnTypeSetting commands as well as each 
+user's web browser. 
 
 In particular the cnSetup command:
 

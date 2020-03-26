@@ -24,10 +24,11 @@ import (
   "github.com/diSimplex/ConTeXtNursery/cnSetup/internals"
   "github.com/diSimplex/ConTeXtNursery/logger"
   "os"
+  "math/rand"
   "runtime"
   "strings"
   "sync"
-//  "time"
+  "time"
 )
 
 // A User.Name->User.Password mapping used to write out the 
@@ -136,7 +137,9 @@ func main() {
   
   fmt.Printf("numCPU: %d\n", runtime.NumCPU())
   fmt.Printf("GOMAXPROCS: %d\n", runtime.GOMAXPROCS(-1))
-  //os.Exit(-1)
+  
+  // seed the math/rand random number generator with a "random" seed
+  rand.Seed(time.Now().Unix())
   
   // Load or (re)Create the CA...
   // (this MUST be done synchronously)

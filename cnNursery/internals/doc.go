@@ -14,7 +14,31 @@
 
 /*
 
-  ConTeXt Nursiers command internals
+ConTeXt Nurseries command internals
   
+The ConTeXt Nurseries Nursery command (cnNursery) runs a ConTeXt Nursery 
+on a given machine. 
+
+In particular the cnNursery command:
+
+  1. Runs a combined HTML and RESTfull HTTP/JSON interface which can be used 
+     to manage a running cnNursery. 
+  
+  2. Manages local collections of working files ("workspaces") used by 
+     commands being run by the cnNursery on a user's behalf. 
+  
+  3. Manages a collection of command output to allow users to understand how
+     a command is progressing. 
+
+  4. Manages a collection of runable commands ("actions").
+  
+  5. Allows a registered user to configure and run one or more command 
+     actions in a specific workspace. 
+
+This CNNurseries package is used by the cnNursery command to orchestrate 
+the creation of local workspaces, and running of local actions, as well as 
+(potentially) forwarding "work" to other less heavily loaded cnNurseries 
+in a federation of cnNurseries. 
+
 */
 package CNNurseries

@@ -16,14 +16,17 @@ package CNNurseries
 
 import (
   "encoding/json"
+  "fmt"
+  "github.com/diSimplex/ConTeXtNursery/logger"
   "github.com/jinzhu/configor"
-  "sync"
+  "os"
 )
 
-//////////////////////////
-// Configuration variables
+// ConfigType contains the configuration for the whole cnNursery command.
 //
-
+// CONSTRAINTS: Once created, the values in this structure SHOULD only be 
+// altered by structure methods.
+//
 type ConfigType struct {
   Name         string
   Host         string
@@ -37,47 +40,46 @@ type ConfigType struct {
   Key_Path     string
   Work_Dir     string
   Actions_Dir  string
+  CNLog       *logger.LoggerType
 }
 
-// This file collects all of the globals required for the cnNursery
-//  process.
+// Create an (empty) configuration structure
 //
-// Since cnNursery makes essential use of multi-threading, we need to
-// ensure all globals are thread safe. To do this we make liberal use
-// of the sync.RWMutexes, one for each global.
+// Typically this empty configuration structure will be used to 
+// LoadConfiguration. 
 //
-// In this file we manage the global singleton for configuration.
+// CREATES config;
 //
-var configSync sync.RWMutex
-var configPriv ConfigType
-
-//////////////////////////
-// Configuration functions
-
-func LoadConfiguration(configFileName string) {
-  configSync.Lock()
-  defer configSync.Unlock()
-
-  configor.Load(&configPriv, configFileName)
+func CreateConfiguration(cnLog *logger.LoggerType) *ConfigType {
+  return &ConfigType{CNLog: cnLog}
 }
 
-func GetConfig() ConfigType {
-  configSync.RLock()
-  defer configSync.RUnlock()
-
-  return configPriv
+// Load and normalize a configuration from the configFileName.
+//
+// If showConfig is true, show the normalized configuration and exit.
+//
+// ALTERS config;
+// NOT THREAD-SAFE;
+// USES various NormalizeXXX methods;
+//
+func (config *ConfigType) LoadConfiguration(
+  configFileName string,
+  showConfig     bool,
+) {
+  configor.Load(config, configFileName)
+  
+  if showConfig {
+    configBytes, _ := json.MarshalIndent(config, "", "  ")
+    fmt.Printf("%s\n", string(configBytes))
+    os.Exit(0)
+  }
 }
 
-func ConfigToJsonBytes() ([]byte, error) {
-  configSync.RLock()
-  defer configSync.RUnlock()
-
-  return json.MarshalIndent(configPriv, "", "  ")
-}
-
-func IsPrimary() bool {
-  configSync.RLock()
-  defer configSync.RUnlock()
-
-  return configPriv.Base_Url == configPriv.Primary_Url
+// Returns true if this cnNursery is configured as the Primary cnNursery 
+// of this federation. 
+//
+// READS config;
+//
+func (config *ConfigType) IsPrimary() bool {
+  return config.Base_Url == config.Primary_Url
 }

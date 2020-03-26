@@ -15,43 +15,56 @@
 package CNNurseries
 
 import (
-//  "bytes"
   "context"
-//  "encoding/json"
-//  "fmt"
   "github.com/diSimplex/ConTeXtNursery/clientConnection"
   "github.com/diSimplex/ConTeXtNursery/interfaces/control"
   "github.com/diSimplex/ConTeXtNursery/interfaces/discovery"
+  "github.com/diSimplex/ConTeXtNursery/logger"
   "github.com/diSimplex/ConTeXtNursery/webserver"
   "html/template"
-//  "io/ioutil"
-//  "math/rand"
-//  "net/http"
   "sync"
-//  "time"
 )
 
-////////////////////
-// Control interface
-
+// CNState contains the (essentially global) state required to implement 
+// the Control RESTful interface. 
+//
+// CONSTRAINTS: Once created, the values in this structure SHOULD only be 
+// altered by structure methods.
+//
 type CNState struct {
-  Mutex sync.RWMutex
-  State control.NurseryState
-  Ws    *webserver.WS
-  Cc    *clientConnection.CC
+  Mutex       sync.RWMutex
+  Primary_Url string
+  State       control.NurseryState
+  Ws         *webserver.WS
+  Cc         *clientConnection.CC
+  CNLog      *logger.LoggerType
+  CNInfoMap  *CNInfoMap
 }
 
-func CreateCNState(ws *webserver.WS, cc *clientConnection.CC) *CNState {
-  lConfig := getConfig()
+// Create a CNState structure
+//
+// READS config;
+// READS cnInfoMap;
+// READS ws;
+// READS cc;
+//
+func CreateCNState(
+  config    *ConfigType,
+  cnInfoMap *CNInfoMap,
+  ws        *webserver.WS,
+  cc        *clientConnection.CC,
+) *CNState {
   return &CNState{
     State: control.NurseryState{
-      Base_Url:     lConfig.Base_Url,
+      Base_Url:     config.Base_Url,
       Url_Modifier: "",
       State:        "up",
       Processes:    0,
     },
     Ws: ws,
     Cc: cc,
+    CNLog: config.CNLog,
+    CNInfoMap: cnInfoMap,
   }
 }
 
@@ -77,23 +90,21 @@ func (cnState *CNState) ActionChangeNurseryState(stateChange string) {
     case control.StateKill   : cnState.SetState(stateChange)
       cnState.Ws.Server.Shutdown(context.Background())
     default                  :
-      cnLog.Logf("Ignoring incorrect state change: [%s]", stateChange)
+      cnState.CNLog.Logf("Ignoring incorrect state change: [%s]", stateChange)
   }
 }
 
 func (cnState *CNState) ActionChangeFederationState(stateChange string) {
-  cnInfoMap.DoToAllOthers(func (name string, ni discovery.NurseryInfo) {
+  cnState.CNInfoMap.DoToAllOthers(func (name string, ni discovery.NurseryInfo) {
     control.SendNurseryControlMessage(ni.Base_Url, stateChange, cnState.Cc)
   })
-  lConfig := getConfig()
-  control.SendNurseryControlMessage(lConfig.Base_Url, stateChange, cnState.Cc)
+  control.SendNurseryControlMessage(cnState.State.Base_Url, stateChange, cnState.Cc)
 }
 
 func (cnState *CNState) ResponseListFederationStatusJSON() *control.FederationStateMap {
-  lConfig         := getConfig()
   fedStateMap     := control.FederationStateMap{}
   fedNumProcesses := uint(0)
-  cnInfoMap.DoToAll(func(name string, ni discovery.NurseryInfo) {
+  cnState.CNInfoMap.DoToAll(func(name string, ni discovery.NurseryInfo) {
     ns := control.NurseryState{
       Base_Url:     ni.Base_Url,
       Url_Modifier: "",
@@ -104,7 +115,7 @@ func (cnState *CNState) ResponseListFederationStatusJSON() *control.FederationSt
     fedStateMap[name] = ns
   })
   fedStateMap["Federation"] = control.NurseryState{
-    Base_Url:     lConfig.Primary_Url,
+    Base_Url:     cnState.Primary_Url,
     Url_Modifier: "/all",
     State:        control.StateUp,
     Processes:    fedNumProcesses,
@@ -168,7 +179,7 @@ func (cnState *CNState) ResponseListFederationStatusTemplate() *template.Templat
   theTemplate := template.New("body")
 
   theTemplate, err := theTemplate.Parse(controlTemplateStr)
-  cnLog.MayBeFatal("Could not parse the internal control template", err)
+  cnState.CNLog.MayBeFatal("Could not parse the internal control template", err)
 
   return theTemplate
 }

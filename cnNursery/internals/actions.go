@@ -15,27 +15,21 @@
 package CNNurseries
 
 import (
-//  "bytes"
-//  "context"
-//  "encoding/json"
-//  "fmt"
   "github.com/diSimplex/ConTeXtNursery/clientConnection"
   "github.com/diSimplex/ConTeXtNursery/interfaces/action"
   "github.com/diSimplex/ConTeXtNursery/interfaces/control"
-//  "github.com/diSimplex/ConTeXtNursery/interfaces/discovery"
   "github.com/diSimplex/ConTeXtNursery/webserver"
   "html/template"
   "io"
-//  "io/ioutil"
-//  "math/rand"
-//  "net/http"
   "sync"
-//  "time"
 )
 
-///////////////////
-// Actons interface
-
+// ActionsState contains the (essentially global) state required to 
+// implement the Actions RESTful interface.
+//
+// CONSTRAINTS: Once created, the values in this structure SHOULD only be 
+// altered by structure methods.
+//
 type ActionsState struct {
   Mutex sync.RWMutex
   State control.NurseryState
@@ -43,11 +37,20 @@ type ActionsState struct {
   Cc    *clientConnection.CC
 }
 
-func CreateActionsState(ws *webserver.WS, cc *clientConnection.CC) *CNState {
-  lConfig := getConfig()
-  return &CNState{
+// Create an ActionsState structure
+//
+// READS config;
+// READS ws;
+// READS cc;
+//
+func CreateActionsState(
+  config *ConfigType,
+  ws     *webserver.WS,
+  cc     *clientConnection.CC,
+) *ActionsState {
+  return &ActionsState{
     State: control.NurseryState{
-      Base_Url:     lConfig.Base_Url,
+      Base_Url:     config.Base_Url,
       Url_Modifier: "",
       State:        "up",
       Processes:    0,
@@ -66,7 +69,7 @@ func (aState *ActionsState) ScanForActions() {
 
 }
 
-func (aState *ActionsState) ResponseListActionsJSON() *action.ActionDescription {
+func (aState *ActionsState) ResponseListActionsJSON() action.ActionList {
   return nil
 }
 

@@ -16,42 +16,45 @@ package CNNurseries
 
 import (
   "github.com/diSimplex/ConTeXtNursery/interfaces/discovery"
+  "github.com/diSimplex/ConTeXtNursery/logger"
   "html/template"
   "strings"
   "sync"
 )
 
-// The CNInfoMap collects all of the globals required for the cnNursery process.
+// The CNInfoMap collects a cnNursery's map of all other cnNurseries in 
+// the federation. 
 //
-// Since cnNursery makes essential use of multi-threading, we need to 
-// ensure all globals are thread safe. To do this we make liberal use
-// of the sync.RWMutexes, one for each global.
+// CONSTRAINTS: Once created, the values in this structure SHOULD only be 
+// altered by structure methods.
 //
 type CNInfoMap struct {
   IsPrimary bool
+  Name      string
   Mutex     sync.RWMutex
   NI        discovery.NurseryInfoMap
+  CNLog     *logger.LoggerType
 }
 
-func CreateCNInfoMap() *CNInfoMap {
-  lConfig := getConfig()
-
+func CreateCNInfoMap(
+  config *ConfigType,
+) *CNInfoMap {
   infoMap := CNInfoMap{}
-  infoMap.IsPrimary = strings.Contains(lConfig.Primary_Url, lConfig.Name)
+  infoMap.IsPrimary = strings.Contains(config.Primary_Url, config.Name)
+  infoMap.Name      = config.Name
   infoMap.NI        = make(discovery.NurseryInfoMap)
+  infoMap.CNLog     = config.CNLog
   return &infoMap
 }
 
 type ANurseryAction func(string, discovery.NurseryInfo)
 
 func (cniMap *CNInfoMap) DoToAllOthers(anAction ANurseryAction) {
-  lConfig := getConfig()
-
   cniMap.Mutex.Lock()
   defer cniMap.Mutex.Unlock()
 
   for aKey, aValue := range cniMap.NI {
-    if aKey == lConfig.Name { continue } // do not do this to myself!
+    if aKey == cniMap.Name { continue } // do not do this to myself!
     anAction(aKey, aValue)
   }
 }
@@ -146,7 +149,7 @@ func (cniMap *CNInfoMap) ResponseListNurseryInformationTemplate() *template.Temp
   theTemplate := template.New("body")
 
   theTemplate, err := theTemplate.Parse(heartBeatTemplateStr)
-  cnLog.MayBeFatal("Could not parse the internal heartBeat template", err)
+  cniMap.CNLog.MayBeFatal("Could not parse the internal heartBeat template", err)
 
   return theTemplate
 }

@@ -51,6 +51,13 @@ func (l *LoggerType) MayBeError(logMessage string, err error) {
   }
 }
 
+func (l *LoggerType) MayBeErrorf(err error, logFormat string, v ...interface{}) {
+  if err != nil {
+    if l.PrintStack { debug.PrintStack() }
+    log.Printf(l.AppName+"(error): "+logFormat+" error: %s", v...)
+  }
+}
+
 func (l *LoggerType) Log(logMesg string) {
   log.Printf("%s(info): %s", l.AppName, logMesg)
 }

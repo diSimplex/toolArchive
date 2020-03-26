@@ -31,6 +31,9 @@ import (
 //
 //   2. Write out the YAML configuration files used by each cnTypeSetter.
 //
+// CONSTRAINTS: Once created, the values in this structure SHOULD only be 
+// altered by structure methods. 
+//
 type UserType struct {
   Name          string
   Cert_Dir      string
@@ -40,7 +43,7 @@ type UserType struct {
   Pkcs12_Path   string
   Primary_Url   string
   Config_Path   string
-  Serial_Number int64
+  Serial_Number uint
   Key_Size      uint
   Password      string
 }
@@ -62,6 +65,12 @@ var (
 )
 
 // Normalize the fields of a given UserType (using the defaults provided). 
+//
+// READS defaults;
+// READS config;
+// ALTERS user;
+// NOT THREAD-SAFE;
+// CALLED BY: LoadConfiguraiton ONLY;
 //
 func (user *UserType) NormalizeConfig(
   userNum   int,
@@ -96,7 +105,7 @@ func (user *UserType) NormalizeConfig(
   //  C/S  ((1<<5 + nurseryNum)<<33) and
   //  User ((2<<5 + userNum)<<33)
   //
-  if user.Serial_Number == 0 { user.Serial_Number = int64(2<<5 + userNum)  }
+  if user.Serial_Number == 0 { user.Serial_Number = uint(2<<5 + userNum)  }
 
   if user.Key_Size == 0 { user.Key_Size = config.Key_Size   }
 }
@@ -108,9 +117,11 @@ func (user *UserType) NormalizeConfig(
 // We provide the user, the user defaults as well as the primaryUrl of 
 // this federation of Nurseries. 
 //
-func (user *UserType) WriteConfiguration(config *ConfigType) {
+// READS user;
+//
+func (user *UserType) WriteConfiguration() error {
 
-  fmt.Printf("\n\nCreating configuration file for the user [%s]\n", user)
+  fmt.Printf("\n\nCreating configuration file for the user [%s]\n", user.Name)
 
   yamlTemplateStr := `
 # This is the configuration for the {{.Name}} User
@@ -126,13 +137,25 @@ cert_path:    "{{.Cert_Path}}"
 key_path:     "{{.Key_Path}}"
 `
   yamlTemplate, err := template.New("yamlTemplate").Parse(yamlTemplateStr)
-  config.CSLog.MayBeFatal("Could not parse the yaml template", err)
+  if err != nil {
+    return fmt.Errorf("Could not parse the yaml template: %w", err)
+  }
 
   yamlFile, err := os.Create(user.Config_Path)
-  config.CSLog.MayBeFatal("Could not open the config file for writing", err)
+  if err != nil {
+    return fmt.Errorf("Could not open the config file for writing: %w", err)
+  }
 
   err = yamlTemplate.Execute(yamlFile, user)
-
+  if err != nil {
+    yamlFile.Close()
+    return fmt.Errorf("Could not run user configuration YAML template: %w", err)
+  }
+  
   err = yamlFile.Close()
-  config.CSLog.MayBeFatal("Could not close the config file", err)
+  if err != nil {
+    return fmt.Errorf("Could not close the user config file: %w", err)
+  }
+  
+  return nil
 }

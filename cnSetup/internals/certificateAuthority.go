@@ -25,10 +25,10 @@ import (
   "crypto/x509/pkix"
   "encoding/pem"
   "fmt"
+  "github.com/diSimplex/ConTeXtNursery/logger"
   "io/ioutil"
   "math/big"
   "os"
-  "sync"
   "time"
 )
 
@@ -36,18 +36,22 @@ import (
 // public/private RSA keys, as well as auxilary fields to control where 
 // external PEM files can be found or stored. 
 //
+// CONSTRAINTS: Once created, the values in this structure SHOULD only be 
+// altered by structure methods. 
+//
 type  CAType struct {
   // Standard x509 fields
   //
-  Serial_Number  uint
-  Organization   string
-  Country        string
-  Province       string
-  Locality       string
-  Street_Address string
-  Postal_Code    string
-  Email_Address  string
-  Common_Name    string
+  Serial_Number   uint
+  Organization    string
+  Federation_Name string
+  Country         string
+  Province        string
+  Locality        string
+  Street_Address  string
+  Postal_Code     string
+  Email_Address   string
+  Common_Name     string
   //
   Valid_For struct {
     Years  uint `default:"10"`
@@ -65,12 +69,16 @@ type  CAType struct {
   // to the actual certificates and keys. 
   //
   Key_Size       uint
-  Mutex         sync.RWMutex
   Cert          *x509.Certificate
   PrivateKey    *rsa.PrivateKey
+  CSLog         *logger.LoggerType
 }
 
 // Normalize the Certificate Authority auxilary fields.
+//
+// ALTERS ca;
+// NOT THREAD-SAFE;
+// CALLED BY: LoadConfiguration ONLY;
 //
 func (ca *CAType) NormalizeCA(config *ConfigType) {
   // Make sure the Serial_Number is constantly increasing...
@@ -78,7 +86,8 @@ func (ca *CAType) NormalizeCA(config *ConfigType) {
   if ca.Serial_Number == 0 { ca.Serial_Number = uint(time.Now().Unix()) }
 
   if config.Federation_Name != "" {
-     
+    ca.Federation_Name = config.Federation_Name
+    
     if ca.Dir == "" {
       ca.Dir = "ca/" + config.Federation_Name
     }
@@ -108,47 +117,83 @@ func (ca *CAType) NormalizeCA(config *ConfigType) {
 // Create the Certificate Authority Structure (only) from the details in 
 // the configuraiton. 
 //
+// CREATES ca;
+//
 func CreateCA(config *ConfigType) *CAType {
-  newCA := config.Certificate_Authority
+  newCA       := config.Certificate_Authority
+  newCA.CSLog  = config.CSLog
   return &newCA
 }
 
-// Start changing the Certificate Authority by obtaining a (Write) lock on 
-// the CA Mutex.
-// 
-// This requests a complete lock on the CA values.
-// 
-// If you only need to READ these values, consider using the StartReading 
-// method instead. 
+// Cerate a new "base" x509 Certificate based upon the CA's configured 
+// certificate information.
 //
-func (ca *CAType) StartChanging() {
-  ca.Mutex.Lock()
+// Various fields specific to a particular certificate use will still need 
+// to be filed in by the CA, Nursery, or User certificate code 
+// respectively.
+//
+// It is CRITICAL that we use DIFFERENT serial numbers for each of the: 
+//  - Certificate Authority:  1,
+//  - Clien/Server:           (1<<5) + nurseryNum, and
+//  - User:                   (2<<5) + userNum
+// certificates. We do this using the "serialNumModifier" parameter. (This 
+// assumes a maximum of 2^5 - 1 = 31 nurseries or 2^6 - 1 = 63 users) 
+//
+// READS ca;
+//
+func (ca *CAType) NewBaseCertificate(
+  commonName string,
+  serialNumModifier uint,
+) *x509.Certificate {  
+  return &x509.Certificate {
+    SerialNumber: big.NewInt(int64(serialNumModifier)<<32 | int64(ca.Serial_Number)),
+    SignatureAlgorithm: x509.SHA512WithRSA,
+    Subject: pkix.Name {
+      Organization:       []string{ca.Organization},
+      OrganizationalUnit: []string{ca.Federation_Name},
+      Country:            []string{ca.Country},
+      Province:           []string{ca.Province},
+      Locality:           []string{ca.Locality},
+      StreetAddress:      []string{ca.Street_Address},
+      PostalCode:         []string{ca.Postal_Code},
+      CommonName:         commonName,
+    },
+    EmailAddresses:       []string{ca.Email_Address},
+    NotBefore: time.Now(),
+    NotAfter:  time.Now().AddDate(int(ca.Valid_For.Years),
+                                  int(ca.Valid_For.Months),
+                                  int(ca.Valid_For.Days)),
+  }
 }
 
-// Stop changing the Certificate Authority by releasing the (Write) lock on
-// the CA Mutex
+// Create a new RSA Public/Private Key pair.
 //
-func (ca *CAType) StopChanging() {
-  ca.Mutex.Unlock()
+// IGNORES ca;
+//
+func (ca *CAType) NewRsaKeys(keySize uint) (*rsa.PrivateKey, error) {
+  return rsa.GenerateKey(rand.Reader, int(keySize))
 }
 
-// Start reading the values in the Certificate Authority by obtaining a 
-// (Read) lock on the CA Mutex.
+// Creates a new signed x509 Certificate returned as as "raw" ([]byte) 
+// certificate using an x509 Certificate and its associated RSA public 
+// key. 
 //
-// IT IS CRITICAL THAT NO VALUES ARE CHANGED. 
+// READS ca;
 //
-// If you need to CHANGE a value, then use the StartChanging method 
-// instead. 
-//
-func (ca *CAType) StartReading() {
-  ca.Mutex.RLock()
-}
-
-// Stop reading the values in the Certificate Authority by releasing the 
-// (Read) lock on the CA Mutex. 
-//
-func (ca *CAType) StopReading() {
-  ca.Mutex.RUnlock()
+func (ca *CAType) SignCertificate(
+  certToSign     *x509.Certificate,
+  certPublicKey  *rsa.PublicKey,
+) ([]byte, error) {
+//  key, err := certPrivateKey.(crypto.Signer)
+//  if err != nil {
+//    return nil, fmt.Errorf("Could not type cast private key to crypto.Signer: %w", err)
+//  }
+  return x509.CreateCertificate(
+    rand.Reader,
+    certToSign, ca.Cert,
+    certPublicKey,
+    ca.PrivateKey,
+  )
 }
 
 // Create a new Certificate Authority by creating a totally new 
@@ -157,50 +202,39 @@ func (ca *CAType) StopReading() {
 // This code has been inspired by: Shane Utt's excellent article:
 //   https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
 //
-func (ca *CAType) CreateNewCA(config *ConfigType) error {
-  ca.Mutex.Lock()
-  fmt.Printf("\nCreating a new Certificate Authority for [%s]\n", config.Federation_Name)
-
-  ca.Cert = &x509.Certificate {
-    // we need to use DIFFERENT serial numbers for each of CA (1<<32), 
-    //  C/S (1<<33) and User (1<<34)
-    SerialNumber: big.NewInt(int64(1<<32) | int64(ca.Serial_Number)),
-    SignatureAlgorithm: x509.SHA512WithRSA,
-    Subject: pkix.Name {
-      Organization:  []string{ca.Organization},
-      Country:       []string{ca.Country},
-      Province:      []string{ca.Province},
-      Locality:      []string{ca.Locality},
-      StreetAddress: []string{ca.Street_Address},
-      PostalCode:    []string{ca.Postal_Code},
-      CommonName:    "ConTeXt Nursery "+ca.Common_Name,
-    },
-    EmailAddresses:  []string{ca.Email_Address},
-    NotBefore: time.Now(),
-    NotAfter:  time.Now().AddDate(int(ca.Valid_For.Years),
-                                  int(ca.Valid_For.Months),
-                                  int(ca.Valid_For.Days)),
-    IsCA:        true,
-    ExtKeyUsage: []x509.ExtKeyUsage{
+// ALTERS ca;
+// NOT THREAD-SAFE;
+//
+func (ca *CAType) CreateNewCA() error {
+  fmt.Printf("\nCreating a new Certificate Authority for [%s]\n", ca.Federation_Name)
+  
+  ca.Cert = ca.NewBaseCertificate(
+    "ConTeXt Nursery "+ca.Common_Name,
+    1,
+  )
+  //
+  // Apply Certificate Authority only modifications
+  //
+  ca.Cert.IsCA = true
+  ca.Cert.ExtKeyUsage = []x509.ExtKeyUsage{
       x509.ExtKeyUsageClientAuth,
       x509.ExtKeyUsageServerAuth,
-    },
-    KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign ,
-    BasicConstraintsValid: true,
-  }
-
+    }
+  ca.Cert.KeyUsage = x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign 
+  ca.Cert.BasicConstraintsValid =true
+  
+  // Create a new RSA public/private key pair
+  //
   var err error
-  ca.PrivateKey, err = rsa.GenerateKey(rand.Reader, int(ca.Key_Size))
+  ca.PrivateKey, err = ca.NewRsaKeys(ca.Key_Size)
   if err != nil {
     return fmt.Errorf("could not generate rsa key for CA: %w", err)
   }
-
-  ca.Cert.Raw, err = x509.CreateCertificate(
-    rand.Reader,
-    ca.Cert, ca.Cert,
-    &ca.PrivateKey.PublicKey,
-    ca.PrivateKey,
-  )
+  
+  // create a self-signed certificate using our own ca.Cert and 
+  // ca.PrivateKey 
+  //
+  ca.Cert.Raw, err = ca.SignCertificate(ca.Cert, &ca.PrivateKey.PublicKey)
   if err != nil {
     return fmt.Errorf("could not create the CA certificate: %w", err)
   }
@@ -210,6 +244,8 @@ func (ca *CAType) CreateNewCA(config *ConfigType) error {
 
 // Write the Certificate Authority's x509 certificate and RSA keys to files
 // on the disk. 
+//
+// READS ca;
 //
 func (ca *CAType) WriteCAFiles(config *ConfigType) error {
   caSubject := "Subject: ConTeXt Nursery " + config.Federation_Name + " Certificate Authority\n"
@@ -252,6 +288,9 @@ func (ca *CAType) WriteCAFiles(config *ConfigType) error {
 
 // Attempt to load an existing Certificate Authority from PEM files 
 // containing x509 certificates and public/private RSA keys. 
+//
+// ALTERS ca;
+// NOT THREAD-SAFE;
 //
 func (ca *CAType) LoadCAFromFiles() error {
   caCertBytes, err := ioutil.ReadFile(ca.Cert_File_Name)

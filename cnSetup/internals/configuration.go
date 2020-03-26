@@ -20,7 +20,6 @@ import (
   "github.com/diSimplex/ConTeXtNursery/logger"
   "github.com/jinzhu/configor"
   "os"
-  "sync"
 )
 
 // ConfigType contains the configuration for the whole cnSetup command. 
@@ -29,6 +28,9 @@ import (
 // Its associated methods are responsible for loading configuration for a 
 // Federation of ConTeXt Nurseries, descriptions of all nurseries and 
 // users, as well as maintaining internal copies of the CA 
+//
+// CONSTRAINTS: Once created, the values in this structure SHOULD only be 
+// altered by structure methods. 
 //
 type ConfigType struct {
 
@@ -53,9 +55,8 @@ type ConfigType struct {
   User_Defaults         UserType
   Users               []UserType
   
-  // Auxilary fields for access and logging
+  // Auxilary fields for logging
   //
-  Mutex                 sync.RWMutex
   CSLog                *logger.LoggerType
 }
 
@@ -63,59 +64,24 @@ type ConfigType struct {
 //
 // Typically this empty configuration structure will be used to LoadConfiguration.
 //
+// CREATES config;
+//
 func CreateConfiguration(csLog *logger.LoggerType) *ConfigType {
-  return &ConfigType{}
-}
-
-// Start changing the configuration by obtaining a (Write) lock on the 
-// configuration Mutex. 
-// 
-// This requests a complete lock on the configuration values.
-// 
-// If you only need to READ these values, consider using the StartReading 
-// method instead. 
-//
-func (config *ConfigType) StartChanging() {
-  config.Mutex.Lock()
-}
-
-// Stop changing the configuration by releasing the (Write) lock on the 
-// configuration Mutex. 
-//
-func (config *ConfigType) StopChanging() {
-  config.Mutex.Unlock()
-}
-
-// Start reading the values in the configuration by obtaining a (Read) 
-// lock on the configuration Mutex. 
-//
-// IT IS CRITICAL THAT NO VALUES ARE CHANGED. 
-//
-// If you need to CHANGE a value, then use the StartChanging method 
-// instead. 
-//
-func (config *ConfigType) StartReading() {
-  config.Mutex.RLock()
-}
-
-// Stop reading the values in the configuraiton by releasing the (Read) 
-// lock on the configuration Mutex. 
-//
-func (config *ConfigType) StopReading() {
-  config.Mutex.RUnlock()
+  return &ConfigType{CSLog: csLog}
 }
 
 // Load and normalize a configuration from the configFileName file.
 //
 // If showConfig is true, show the normalized configuration and exit.
 //
+// ALTERS config;
+// NOT THREAD-SAFE;
+// USES various NormalizeXXX methods;
+//
 func (config *ConfigType) LoadConfiguration(
   configFileName string,
   showConfig     bool,
 ) {
-  config.Mutex.Lock()
-  defer config.Mutex.Unlock()
-  
   configor.Load(&config, configFileName)
 
     

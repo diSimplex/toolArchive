@@ -16,14 +16,10 @@ package CNSetup
 
 import (
   "bytes"
-  "crypto/rand"
-  "crypto/rsa"
   "crypto/x509"
-  "crypto/x509/pkix"
   "encoding/pem"
   "fmt"
   "io/ioutil"
-  "math/big"
   "net"
   "os"
   "path/filepath"
@@ -37,10 +33,13 @@ import (
 // This code has been inspired by: Shane Utt's excellent article:
 //   https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
 //
-func (nursery *NurseryType) CreateNurseryCertificate(
-  nurseryNum int,
-  ca        *CAType,
-  config    *ConfigType,
+// READS ca;
+// READS nursery;
+//
+func (nursery *NurseryType) CreateNurseryCertificateToFiles(
+  nurseryNum     int,
+  ca            *CAType,
+  federationName string,
 ) error {
 
   os.MkdirAll(nursery.Cert_Dir, 0755)
@@ -58,43 +57,17 @@ func (nursery *NurseryType) CreateNurseryCertificate(
   }
 
   fmt.Printf("\n\nCreating certificate files for the [%s] Nursery\n", nursery.Name)
-
-  ca.StartReading()
-  defer ca.StopReading()
   
-  nCert := &x509.Certificate {
-    // we need to use DIFFERENT serial numbers for each of CA (1<<32), 
-    //  C/S  ((1<<5 + nurseryNum)<<33) and
-    //  User ((2<<5 + userNum)<<33)
-    SerialNumber: big.NewInt(
-      (nursery.Serial_Number)<<33 |
-      int64(ca.Serial_Number),
-    ),    SignatureAlgorithm: x509.SHA512WithRSA,
-    Subject: pkix.Name {
-      Organization:  []string{ca.Organization},
-      Country:       []string{ca.Country},
-      Province:      []string{ca.Province},
-      Locality:      []string{ca.Locality},
-      StreetAddress: []string{ca.Street_Address},
-      PostalCode:    []string{ca.Postal_Code},
-      CommonName:    nursery.Name,
-    },
-    EmailAddresses:  []string{ca.Email_Address},
-    NotBefore: time.Now(),
-    NotAfter:  time.Now().AddDate(int(ca.Valid_For.Years),
-                                  int(ca.Valid_For.Months),
-                                  int(ca.Valid_For.Days)),
-    ExtKeyUsage: []x509.ExtKeyUsage{
+  nCert := ca.NewBaseCertificate(nursery.Name, nursery.Serial_Number)
+  nCert.ExtKeyUsage = []x509.ExtKeyUsage{
       x509.ExtKeyUsageClientAuth,
       x509.ExtKeyUsageServerAuth,
-    },
-    SubjectKeyId: []byte{1,2,3,4,6},
-    KeyUsage:    x509.KeyUsageDigitalSignature |
+    }
+  nCert.SubjectKeyId = []byte{1,2,3,4,6}
+  nCert.KeyUsage = x509.KeyUsageDigitalSignature |
       x509.KeyUsageKeyEncipherment |
       x509.KeyUsageKeyAgreement |
-      x509.KeyUsageDataEncipherment,
-  }
-  ca.StopReading()
+      x509.KeyUsageDataEncipherment
 
   // Add the DNSNames and IPAddresses
   for _, aHost := range nursery.Hosts {
@@ -106,22 +79,17 @@ func (nursery *NurseryType) CreateNurseryCertificate(
     }
   }
 
-  nPrivateKey, err := rsa.GenerateKey(rand.Reader, int(nursery.Key_Size))
+  nPrivateKey, err := ca.NewRsaKeys(nursery.Key_Size)
   if err != nil {
     return fmt.Errorf("could not generate rsa key for ["+nursery.Name+"] Nursery: %w", err)
   }
 
-  nBytes, err := x509.CreateCertificate(
-    rand.Reader,
-    nCert, ca.Cert,
-    &nPrivateKey.PublicKey,
-    ca.PrivateKey,
-  )
+  nBytes, err := ca.SignCertificate(nCert, &nPrivateKey.PublicKey)
   if err != nil {
     return fmt.Errorf("could not create the certificate for ["+nursery.Name+"] Nursery: %w", err)
   }
 
-  nSubject := "Subject: ConTeXt Nursery " + config.Federation_Name + " Server Certificate for ["+nursery.Name+"] Nursery"
+  nSubject := "Subject: ConTeXt Nursery " + federationName + " Server Certificate for ["+nursery.Name+"] Nursery"
   nDate    := "Date:    "+time.Now().String()+"\n"
 
   caPEM := new(bytes.Buffer)

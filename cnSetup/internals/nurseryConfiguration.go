@@ -32,6 +32,9 @@ import (
 //
 //   2. Write out the YAML configuration files used by each cnNursery. 
 //
+// CONSTRAINTS: Once created, the values in this structure SHOULD only be 
+// altered by structure methods. 
+//
 type NurseryType struct {
   Name          string
   Host          string
@@ -49,7 +52,7 @@ type NurseryType struct {
   Config_Path   string
   Work_Dir      string
   Actions_Dir   string
-  Serial_Number int64
+  Serial_Number uint
   Key_Size      uint
 }
 
@@ -78,12 +81,20 @@ var (
 
 // Compute the (control) URL associated with a given Nursery.
 //
+// READS nursery;
+//
 func (nursery *NurseryType) ComputeUrl() string {
   return "https://"+nursery.Hosts[0]+":"+strconv.Itoa(int(nursery.Port))
 }
 
 // Normalize the fields of a given NurseryType (using the defaults 
 // provided). 
+//
+// READS  defaults;
+// READS  config;
+// ALTERS nursery;
+// NOT THREAD-SAFE;
+// CALLED BY: LoadConfiguration ONLY;
 //
 func (nursery *NurseryType) NormalizeConfig(
   nurseryNum int,
@@ -126,7 +137,7 @@ func (nursery *NurseryType) NormalizeConfig(
   //  User ((2<<5 + userNum)<<33)
   //
   if nursery.Serial_Number == 0 {
-    nursery.Serial_Number = int64(1<<5 + nurseryNum)
+    nursery.Serial_Number = uint(1<<5 + nurseryNum)
   }
   if nursery.Key_Size == 0 {
     nursery.Key_Size = config.Key_Size
@@ -135,6 +146,10 @@ func (nursery *NurseryType) NormalizeConfig(
 
 // Set the Nursery's Primary Url (of the whole federation)
 //
+// ALTERS nursery;
+// NOT THREAD-SAFE;
+// CALLED BY: LoadConfiguration ONLY;
+//
 func (nursery *NurseryType) SetPrimaryUrl(primaryUrl string) {
   nursery.Primary_Url = primaryUrl
 }
@@ -142,9 +157,9 @@ func (nursery *NurseryType) SetPrimaryUrl(primaryUrl string) {
 // Write out the YAML configuration file requred to run a given cnNursery 
 // command. 
 //
-func (nursery *NurseryType) WriteConfiguration(
-  config *ConfigType,
-) {
+// READS nursery;
+//
+func (nursery *NurseryType) WriteConfiguration() error {
 
   fmt.Printf("\n\nCreating configuration for the [%s] Nursery\n", nursery.Name)
 
@@ -170,13 +185,25 @@ actions_dir:  "{{.Actions_Dir}}"
 `
 
   yamlTemplate, err := template.New("yamlTemplate").Parse(yamlTemplateStr)
-  config.CSLog.MayBeFatal("Could not parse the yaml template", err)
+  if err != nil {
+    return fmt.Errorf("Could not parse the yaml template: %w", err)
+  }
 
   yamlFile, err := os.Create(nursery.Config_Path)
-  config.CSLog.MayBeFatal("Could not open the config file for writing", err)
+  if err != nil {
+    return fmt.Errorf("Could not open the config file for writing: %w", err)
+  }
 
   err = yamlTemplate.Execute(yamlFile, nursery)
-
+  if err != nil {
+    yamlFile.Close()
+    return fmt.Errorf("Could not run nursery configuration YAML template: %w", err)
+  }
+  
   err = yamlFile.Close()
-  config.CSLog.MayBeFatal("Could not close the config file", err)
+  if err != nil {
+    return fmt.Errorf("Could not close the nursery config file: %w", err)
+  }
+  
+  return nil
 }

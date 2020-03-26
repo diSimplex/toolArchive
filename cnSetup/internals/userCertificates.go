@@ -12,22 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This code has been inspired by: Shane Utt's excellent article:
-//   https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
-
 package CNSetup
 
 import (
   "bytes"
-  "crypto/rand"
-  "crypto/rsa"
   "crypto/x509"
-  "crypto/x509/pkix"
   "encoding/pem"
   "fmt"
   "github.com/sethvargo/go-password/password"
   "io/ioutil"
-  "math/big"
   "os"
   "os/exec"
   "time"
@@ -44,13 +37,15 @@ import (
 // This code has been inspired by: Shane Utt's excellent article:
 //   https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
 //
+// READS ca;
+// READS user;
+//
 func (user *UserType) CreateUserCertificate(
-  userNum int,
-  ca     *CAType,
-  config *ConfigType,
+  userNum        int,
+  ca            *CAType,
+  federationName string,
 ) error {
 
-  // TODO sort this out with user.NormalizeConfiguration
   os.MkdirAll(user.Cert_Dir, 0755)
   caCertFile, caCertErr := os.Open(user.Ca_Cert_Path)
   certFile, certErr := os.Open(user.Cert_Path)
@@ -68,60 +63,29 @@ func (user *UserType) CreateUserCertificate(
   }
 
   fmt.Printf("\n\nCreating certificate files for the user [%s]\n", user.Name)
-
-  ca.StartReading()
-  defer ca.StopReading()
   
-  uCert := &x509.Certificate {
-    // we need to use DIFFERENT serial numbers for each of CA (1<<32),
-    //  C/S  ((1<<5 + nurseryNum)<<33) and
-    //  User ((2<<5 + userNum)<<33)
-    SerialNumber: big.NewInt(
-      (user.Serial_Number)<<33 |
-      int64(ca.Serial_Number),
-    ),
-    SignatureAlgorithm: x509.SHA512WithRSA,
-    Subject: pkix.Name {
-      Organization:  []string{ca.Organization},
-      Country:       []string{ca.Country},
-      Province:      []string{ca.Province},
-      Locality:      []string{ca.Locality},
-      StreetAddress: []string{ca.Street_Address},
-      PostalCode:    []string{ca.Postal_Code},
-      CommonName:    user.Name + " ( ConTeXt Nursery " + config.Federation_Name + " )",
-    },
-    EmailAddresses:  []string{ca.Email_Address},
-    NotBefore: time.Now(),
-    NotAfter:  time.Now().AddDate(int(ca.Valid_For.Years),
-                                  int(ca.Valid_For.Months),
-                                  int(ca.Valid_For.Days)),
-    ExtKeyUsage: []x509.ExtKeyUsage{
-      x509.ExtKeyUsageClientAuth,
-    },
-    SubjectKeyId: []byte{1,2,3,4,6},
-    KeyUsage:    x509.KeyUsageDigitalSignature |
+  uCert := ca.NewBaseCertificate(
+    user.Name + " ( ConTeXt Nursery " + federationName + " )",
+    user.Serial_Number,
+  )
+  uCert.ExtKeyUsage  = []x509.ExtKeyUsage{ x509.ExtKeyUsageClientAuth }
+  uCert.SubjectKeyId = []byte{1,2,3,4,6}
+  uCert.KeyUsage     = x509.KeyUsageDigitalSignature |
       x509.KeyUsageKeyEncipherment |
       x509.KeyUsageKeyAgreement |
-      x509.KeyUsageDataEncipherment,
-  }
-  ca.StopReading()
+      x509.KeyUsageDataEncipherment
   
-  uPrivateKey, err := rsa.GenerateKey(rand.Reader, int(user.Key_Size))
+  uPrivateKey, err := ca.NewRsaKeys(user.Key_Size)
   if err != nil {
     return fmt.Errorf("could not generate rsa key for user [%s]: %w", user.Name, err)
   }
 
-  uBytes, err := x509.CreateCertificate(
-    rand.Reader,
-    uCert, ca.Cert,
-    &uPrivateKey.PublicKey,
-    ca.PrivateKey,
-  )
+  uBytes, err := ca.SignCertificate(uCert, &uPrivateKey.PublicKey)
   if err != nil {
     return fmt.Errorf("could not create the certificate for user [%s]: %w", user.Name, err)
   }
 
-  uSubject := "Subject: ConTeXt Nursery " + config.Federation_Name + " User Certificate for user ["+user.Name+"]"
+  uSubject := "Subject: ConTeXt Nursery " + federationName + " User Certificate for user ["+user.Name+"]"
   uDate    := "Date:    "+time.Now().String()+"\n"
 
   caPEM := new(bytes.Buffer)

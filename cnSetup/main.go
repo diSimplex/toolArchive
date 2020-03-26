@@ -56,14 +56,26 @@ func WorkOnNursery(
   aNursery *CNSetup.NurseryType,
   ca       *CNSetup.CAType,
   config   *CNSetup.ConfigType,
-  wg        sync.WaitGroup,
+  wg       *sync.WaitGroup,
 ) {
   defer wg.Done()
   
-  fmt.Printf("(%d)started on nursery: [%s]\n", i, aNursery.Name)
-  aNursery.CreateNurseryCertificate(i, ca, config)
-  aNursery.WriteConfiguration(config)
-  fmt.Printf("(%d)finished on nursery: [%s]\n", i, aNursery.Name)
+  config.CSLog.DebugLockf("(%d)started on nursery: [%s]\n", i, aNursery.Name)
+  err := aNursery.CreateNurseryCertificateToFiles(i, ca, config.Federation_Name)
+  config.CSLog.MayBeErrorf(
+    err,
+    "Could not create nurseryCertificate for [%s]",
+    aNursery.Name,
+  )
+  if err == nil {
+    err = aNursery.WriteConfiguration()
+    config.CSLog.MayBeErrorf(
+      err,
+      "Could not write nursery [%s] configuration file", 
+      aNursery.Name, 
+    )
+  }
+  config.CSLog.DebugLockf("(%d)finished on nursery: [%s]\n", i, aNursery.Name)
 }
 
 func WorkOnUser(
@@ -71,15 +83,27 @@ func WorkOnUser(
   aUser  *CNSetup.UserType,
   ca     *CNSetup.CAType,
   config *CNSetup.ConfigType,
-  wg      sync.WaitGroup,
+  wg     *sync.WaitGroup,
 ) {
   defer wg.Done()
   
-  fmt.Printf("(%d)started on user: [%s]\n", i, aUser.Name)
+  config.CSLog.DebugLockf("(%d)started on user: [%s]\n", i, aUser.Name)
   aUser.Password = userPasswords[aUser.Name]
-  aUser.CreateUserCertificate(i, ca, config) 
-  aUser.WriteConfiguration(config)
-  fmt.Printf("(%d)finished on user: [%s]\n", i, aUser.Name)
+  err := aUser.CreateUserCertificate(i, ca, config.Federation_Name) 
+  config.CSLog.MayBeErrorf(
+    err,
+    "Could not create userCertificate for [%s]",
+    aUser.Name,
+  )
+  if err == nil {
+    err = aUser.WriteConfiguration()
+    config.CSLog.MayBeErrorf(
+      err,
+      "Could not write user [%s] configuration file",
+      aUser.Name,
+    )
+  }
+  config.CSLog.DebugLockf("(%d)finished on user: [%s]\n", i, aUser.Name)
 }
 
 // Orchestrate the (optional) (re)creation of a (self-signed) Certificate 
@@ -121,7 +145,7 @@ func main() {
   err := ca.LoadCAFromFiles()
   if err != nil {
     if createCA {
-      err = ca.CreateNewCA(config)
+      err = ca.CreateNewCA()
       csLog.MayBeFatal("Could not create a new CA", err)
     } else {
       csLog.MayBeFatal("Could not load existing CA from files\n\tDid you mean to use the -createCA command line switch?\n", err)
@@ -139,7 +163,7 @@ func main() {
   for i, aNursery := range config.Nurseries {
     fmt.Printf("(%d)working on nursery: [%s]\n", i, aNursery.Name)
     wg.Add(1)
-    go WorkOnNursery(i, &config.Nurseries[i], ca, config, wg)
+    go WorkOnNursery(i, &config.Nurseries[i], ca, config, &wg)
   }
 
   // Now deal with the users...
@@ -165,7 +189,7 @@ func main() {
   for i, aUser := range config.Users {
     fmt.Printf("(%d)working on user: [%s]\n", i, aUser.Name)
     wg.Add(1)
-    go WorkOnUser(i, &config.Users[i], ca, config, wg)
+    go WorkOnUser(i, &config.Users[i], ca, config, &wg)
   } 
 
 //  time.Sleep(100 * time.Second)

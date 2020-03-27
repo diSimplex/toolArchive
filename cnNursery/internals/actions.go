@@ -18,6 +18,7 @@ import (
   "github.com/diSimplex/ConTeXtNursery/clientConnection"
   "github.com/diSimplex/ConTeXtNursery/interfaces/action"
   "github.com/diSimplex/ConTeXtNursery/interfaces/control"
+  "github.com/diSimplex/ConTeXtNursery/logger"
   "github.com/diSimplex/ConTeXtNursery/webserver"
   "html/template"
   "io"
@@ -35,6 +36,7 @@ type ActionsState struct {
   State control.NurseryState
   Ws    *webserver.WS
   Cc    *clientConnection.CC
+  CNLog *logger.LoggerType
 }
 
 // Create an ActionsState structure
@@ -57,6 +59,7 @@ func CreateActionsState(
     },
     Ws: ws,
     Cc: cc,
+    CNLog: config.CNLog,
   }
 }
 
@@ -109,7 +112,21 @@ func (aState *ActionsState) ResponseDescribeActionJSON() *action.ActionConfig {
 // Part of the action.ActionImpl interface.
 //
 func (aState *ActionsState) ResponseDescribeActionTemplate() *template.Template {
-  return nil
+  actionDescTemplateStr := `
+  <head>
+    <title>Action description</title>
+  </head>
+  <body>
+    <h1>Action description</h1>
+    <p>Hello world!</p>
+  </body>
+`
+  theTemplate := template.New("body")
+  
+  theTemplate, err := theTemplate.Parse(actionDescTemplateStr)
+  aState.CNLog.MayBeFatal("Could not parse the internal action description template", err)
+  
+  return theTemplate
 }
 
 // TODO

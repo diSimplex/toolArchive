@@ -36,6 +36,10 @@ type CNInfoMap struct {
   CNLog     *logger.LoggerType
 }
 
+// Creates a CNInfoMap.
+//
+// READS config;
+//
 func CreateCNInfoMap(
   config *ConfigType,
 ) *CNInfoMap {
@@ -47,8 +51,20 @@ func CreateCNInfoMap(
   return &infoMap
 }
 
+// Defines an action that can be applied to the discovery.NurseryInfo 
+// object. 
+//
+// Used by:
+//    - CNInfoMap.DoToAllOthers, and
+//    - CNInfoMap.DoToAll
+//
 type ANurseryAction func(string, discovery.NurseryInfo)
 
+// Runs the ANurseryAction closure function against every cnNursery listed 
+// in the CNInfoMap **except** the federation's Primary cnNursery. 
+//
+// THREAD-SAFE;
+//
 func (cniMap *CNInfoMap) DoToAllOthers(anAction ANurseryAction) {
   cniMap.Mutex.Lock()
   defer cniMap.Mutex.Unlock()
@@ -59,6 +75,11 @@ func (cniMap *CNInfoMap) DoToAllOthers(anAction ANurseryAction) {
   }
 }
 
+// Runs the ANurseryAction closure function against every cnNursery listed 
+// in the CNInfoMap **including** the federation's Primary cnNursery. 
+//
+// THREAD-SAFE;
+//
 func (cniMap *CNInfoMap) DoToAll(anAction ANurseryAction) {
   cniMap.Mutex.Lock()
   defer cniMap.Mutex.Unlock()
@@ -68,6 +89,10 @@ func (cniMap *CNInfoMap) DoToAll(anAction ANurseryAction) {
   }
 }
 
+// Deletes each cnNursery in the deadNurseries from the cniMap. 
+//
+// THREAD-SAFE;
+//
 func (cniMap *CNInfoMap) DeleteAll(deadNurseries []string) {
   cniMap.Mutex.Lock()
   defer cniMap.Mutex.Unlock()
@@ -77,6 +102,13 @@ func (cniMap *CNInfoMap) DeleteAll(deadNurseries []string) {
   }
 }
 
+// Update the heartbeat status information about the given Nursery in the 
+// federation of Nurseries. 
+//
+// Part of the discovery.DiscoveryImpl interface.
+//
+// THREAD-SAFE;
+//
 func (cniMap *CNInfoMap) ActionUpdateNurseryInfo(ni discovery.NurseryInfo) {
   cniMap.Mutex.Lock()
   defer cniMap.Mutex.Unlock()
@@ -86,6 +118,13 @@ func (cniMap *CNInfoMap) ActionUpdateNurseryInfo(ni discovery.NurseryInfo) {
   }
 }
 
+// Update the cniMap from the provided discovery.NurseryInfoMap if this 
+// cnNursery is not the federation's Primary cnNursery. 
+//
+// Used by the heart beat go routine (SendPeriodicHeartBeats).
+//
+// THREAD-SAFE;
+//
 func (cniMap *CNInfoMap) ActionUpdateNurseryInfoMap(niMap *discovery.NurseryInfoMap) {
   cniMap.Mutex.Lock()
   defer cniMap.Mutex.Unlock()
@@ -95,6 +134,13 @@ func (cniMap *CNInfoMap) ActionUpdateNurseryInfoMap(niMap *discovery.NurseryInfo
   }
 }
 
+// Return the heartbeat status information about the federation of ConTeXt 
+// Nurseries. 
+//
+// Part of the discovery.DiscoveryImpl interface.
+//
+// THREAD-SAFE;
+//
 func (cniMap *CNInfoMap) ResponseListNurseryInformationJSON() discovery.NurseryInfoMap {
   cniMap.Mutex.RLock()
   defer cniMap.Mutex.RUnlock()
@@ -102,6 +148,13 @@ func (cniMap *CNInfoMap) ResponseListNurseryInformationJSON() discovery.NurseryI
   return cniMap.NI
 }
 
+// Return the http.Template used to format an HTML response listing the 
+// heartbeat status information about the federation of ConTeXt Nurseries. 
+//
+// This template expects to be bound to an NurseryInfoMap.
+//
+// Part of the discovery.DiscoveryImpl interface.
+//
 func (cniMap *CNInfoMap) ResponseListNurseryInformationTemplate() *template.Template {
   heartBeatTemplateStr := `
   <head>

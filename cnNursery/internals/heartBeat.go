@@ -31,9 +31,9 @@ import (
 // cnInfoMap. 
 //
 // READS config;
-// READS cnState;
-// READS cnInfoMap;
-// READS cc;
+// CALLS cnState;
+// CALLS cnInfoMap;
+// PARAMETER cc (discovery.SendDiscoveryMessage);
 //
 func SendPeriodicHeartBeats(
   config    *ConfigType,

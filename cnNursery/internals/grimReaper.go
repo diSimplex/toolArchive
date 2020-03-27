@@ -28,7 +28,8 @@ import (
 // not respond, then it is deleted from the cnInfoMap. 
 //
 // READS config;
-// READS cc;
+// CALLS cnInfoMap;
+// CALLS cc;
 //
 func GrimReaper(
   config    *ConfigType,

@@ -40,8 +40,8 @@ type ActionsState struct {
 // Create an ActionsState structure
 //
 // READS config;
-// READS ws;
-// READS cc;
+// FIELD ws (ActionState);
+// FIELD cc (ActionState);
 //
 func CreateActionsState(
   config *ConfigType,
@@ -69,52 +69,103 @@ func (aState *ActionsState) ScanForActions() {
 
 }
 
+// Returns the mapping of the currently registered actions together with a 
+// brief description of each action. 
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ResponseListActionsJSON() action.ActionList {
   return nil
 }
 
+// Returns the http.Template used to formate an HTML response listing the 
+// currently registered actions together with a brief description of each 
+// action. 
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ResponseListActionsTemplate() *template.Template {
   return nil
 }
 
+// TODO
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ActionRunAction(string, *action.ActionConfig) string {
   return ""
 }
 
+// TODO
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ResponseDescribeActionJSON() *action.ActionConfig {
   return nil
 }
 
+// TODO
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ResponseDescribeActionTemplate() *template.Template {
   return nil
 }
 
+// TODO
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ResponseListActionsWithRunsJSON() map[string]string {
   return make(map[string]string, 0)
 }
 
+// TODO
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ResponseListActionsWithRunsTemplate() *template.Template {
   return nil
 }
 
+// TODO
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ResponseListRunsForActionJSON(string) map[string]string {
   return make(map[string]string, 0)
 }
 
+// TODO
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ResponseRunsForActionTemplate() *template.Template {
   return nil
 }
 
+// TODO
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ResponseListOutputsForActionRunJSON(
   string, string,
 ) map[string]string {
   return make(map[string]string, 0)
 }
 
+// TODO
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ResponseOutputsForActionRunTemplate() *template.Template {
   return nil
 }
 
+// TODO
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ResponseOutputFileForActionRunReader(
   string, string, string,
 ) (
@@ -123,18 +174,38 @@ func (aState *ActionsState) ResponseOutputFileForActionRunReader(
   return nil, "", nil
 }
 
+// TODO
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ResponseOutputFileTemplate() *template.Template {
   return nil
 }
 
+// TODO
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ActionDeleteAll() {
 }
 
+// TODO
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ActionDeleteRunsFor(string) {
 }
 
+// TODO
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ActionDeleteOutputFilesFor(string, string) {
 }
 
+// TODO
+//
+// Part of the action.ActionImpl interface.
+//
 func (aState *ActionsState) ActionDeleteOutputFile(string, string, string) {
 }

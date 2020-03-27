@@ -44,9 +44,9 @@ type CNState struct {
 // Create a CNState structure
 //
 // READS config;
-// READS cnInfoMap;
-// READS ws;
-// READS cc;
+// FIELD cnInfoMap;
+// FIELD ws;
+// FIELD cc;
 //
 func CreateCNState(
   config    *ConfigType,
@@ -68,6 +68,10 @@ func CreateCNState(
   }
 }
 
+// Sets the current state of this cnNursery.
+//
+// THREAD-SAFE;
+//
 func (cnState *CNState) SetState(newState string) {
   cnState.Mutex.Lock()
   defer cnState.Mutex.Unlock()
@@ -75,6 +79,10 @@ func (cnState *CNState) SetState(newState string) {
   cnState.State.State = newState // this is too permissive! but works for now.
 }
 
+// Gets the current state of this cnNursery.
+//
+// THREAD-SAFE;
+//
 func (cnState *CNState) GetState() string {
   cnState.Mutex.RLock()
   defer cnState.Mutex.RUnlock()
@@ -82,6 +90,15 @@ func (cnState *CNState) GetState() string {
   return cnState.State.State
 }
 
+// Change the control state of this Nursery.
+//
+// Part of the control.ControlImpl interface.
+//
+// NOTE: control.StateKill is NOT THREAD-SAFE as all threads will be 
+// killed. 
+//
+// All other control.StateXXs are THREAD-SAFE (via SetState)
+//
 func (cnState *CNState) ActionChangeNurseryState(stateChange string) {
   switch stateChange {
     case control.StateUp     : cnState.SetState(stateChange)
@@ -94,6 +111,12 @@ func (cnState *CNState) ActionChangeNurseryState(stateChange string) {
   }
 }
 
+// Change the control state of the federation of Nurseries.
+//
+// Part of the control.ControlImpl interface.
+//
+// THREAD-SAFE (via CNInfoMap.DoToAllOthers)
+//
 func (cnState *CNState) ActionChangeFederationState(stateChange string) {
   cnState.CNInfoMap.DoToAllOthers(func (name string, ni discovery.NurseryInfo) {
     control.SendNurseryControlMessage(ni.Base_Url, stateChange, cnState.Cc)
@@ -101,7 +124,22 @@ func (cnState *CNState) ActionChangeFederationState(stateChange string) {
   control.SendNurseryControlMessage(cnState.State.Base_Url, stateChange, cnState.Cc)
 }
 
+// Return the control status information about the federation of ConTeXt 
+// Nurseries. 
+//
+// NOTE: requests to "kill" a Nursery are kept pending the completion of 
+// all outstanding processes. SO in this pending state, the status 
+// information SHOULD also return the number of running processes left to 
+// complete. 
+//
+// Part of the control.ControlImpl interface.
+//
+// TREAD-SAFE (via Mutex and CNInfoMap.DoToAll)
+//
 func (cnState *CNState) ResponseListFederationStatusJSON() *control.FederationStateMap {
+  cnState.Mutex.RLock()
+  defer cnState.Mutex.RUnlock()
+  
   fedStateMap     := control.FederationStateMap{}
   fedNumProcesses := uint(0)
   cnState.CNInfoMap.DoToAll(func(name string, ni discovery.NurseryInfo) {
@@ -123,6 +161,13 @@ func (cnState *CNState) ResponseListFederationStatusJSON() *control.FederationSt
   return &fedStateMap
 }
 
+// Return the http.Template used to format an HTML response listing the 
+// control status information about the federation of ConTeXt Nurseries. 
+//
+// This template expects to be bound to an FederationStateMap
+//
+// Part of the control.ControlImpl interface.
+//
 func (cnState *CNState) ResponseListFederationStatusTemplate() *template.Template {
   controlTemplateStr := `
   <head>

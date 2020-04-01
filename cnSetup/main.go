@@ -149,7 +149,12 @@ func main() {
   if err != nil {
     if createCA {
       err = ca.CreateNewCA()
-      csLog.MayBeFatal("Could not create a new CA", err)
+      if err != nil {
+        csLog.MayBeFatal("Could not create a new CA", err)
+      } else {
+        err = ca.WriteCAFiles(config)
+        csLog.MayBeFatal("Could not write CA files", err)
+      }
     } else {
       csLog.MayBeFatal("Could not load existing CA from files\n\tDid you mean to use the -createCA command line switch?\n", err)
     }
@@ -158,8 +163,6 @@ func main() {
   // The creation of the Nursery and User certificates and configuration
   // can take place asynchronously...
   //
-  wg.Add(1)
-
   // We asynchronously create each Nursery's certificates as well as 
   // configuration 
   //
@@ -194,11 +197,7 @@ func main() {
     wg.Add(1)
     go WorkOnUser(i, &config.Users[i], ca, config, &wg)
   } 
-
-//  time.Sleep(100 * time.Second)
   
-  // Done...
-  wg.Add(-1)
   // Wait for all go routines
   wg.Wait()
 

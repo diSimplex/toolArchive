@@ -4,6 +4,13 @@ description: |
   Responsible for both listing the current cached status of an artifact as 
   well as downloading a given artifact.
 
+comment: |
+  RESTful HTTP interfaces dictate the use of DELETE and PUT to denote 
+  change. Unfortunately current browsers do not allow users to directly use 
+  the DELETE or PUT verbs in forms. While we could provide a JavaScript 
+  interface built using, for example, MithrilJS, one goal has been to keep 
+  the default HTML interface both complete and simple HTML. 
+
 interface:
   - url: /workspace
     method: GET

@@ -36,8 +36,8 @@ import (
 type Arguments []string
 
 type EnvValue struct {
-  key   string
-  value string
+  Key   string
+  Value string
 }
 
 type EnvVars   []EnvValue
@@ -48,15 +48,15 @@ type ActionConfig struct {
 }
 
 type ArgumentDesc struct {
-  key  string
-  desc string
+  Key  string
+  Desc string
 }
 
 type ArgumentDescs []ArgumentDesc
 
 type EnvironmentDesc struct {
-  key  string
-  desc string
+  Key  string
+  Desc string
 }
 
 type EnvironmentDescs []EnvironmentDesc
@@ -71,7 +71,7 @@ type ActionDescription struct {
 // A map of currently registered actions together with a brief description 
 // of each action.
 //
-type ActionList map[string]string
+type ActionList map[string]ActionDescription
 
 //////////////////////////////////////////////////////////////////////
 // Action interface functions
@@ -92,7 +92,7 @@ type ActionImpl interface {
 
   ActionRunAction(string, *ActionConfig) string
 
-  ResponseDescribeActionJSON() *ActionConfig
+  ResponseDescribeActionJSON(string) ActionDescription
 
   ResponseDescribeActionTemplate() *template.Template
 
@@ -257,7 +257,12 @@ func AddActionInterface(
   err := ws.AddGetHandler(
     "/action",
     func(w http.ResponseWriter, r *http.Request) {
-      pathParts := strings.Split(r.URL.Path, "/")
+      pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
+      ws.Log.Logf(
+        "/action pathParts [%s] len: %d",
+        strings.Join(pathParts, "|"),
+        len(pathParts),
+      )
       if len(pathParts) < 2 {
         //
         // List currently registered actions
@@ -271,7 +276,7 @@ func AddActionInterface(
         //
         // Describe anAction
         //
-        actionDesc := interfaceImpl.ResponseDescribeActionJSON()
+        actionDesc := interfaceImpl.ResponseDescribeActionJSON(pathParts[1])
         if ws.RepliedInJson(w, r, actionDesc) { return }
         actionDescTemp := interfaceImpl.ResponseDescribeActionTemplate()
         err := actionDescTemp.Execute(w, actionDesc)

@@ -372,7 +372,10 @@ func (ws *WS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     )
     return
   }
-
+  ws.Log.Logf(
+    "Found route [%s](%s) for path [%s]", aRoute.Path, aRoute.Prefix, r.URL.Path,
+  )
+  
   method := r.Method
   query  := r.URL.Query()
   queryMethod := strings.Join(query["method"], "")

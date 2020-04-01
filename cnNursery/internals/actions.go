@@ -20,8 +20,10 @@ import (
   "github.com/diSimplex/ConTeXtNursery/interfaces/control"
   "github.com/diSimplex/ConTeXtNursery/logger"
   "github.com/diSimplex/ConTeXtNursery/webserver"
+  "github.com/jinzhu/configor"
   "html/template"
   "io"
+  "path/filepath"
   "sync"
 )
 
@@ -32,11 +34,14 @@ import (
 // altered by structure methods.
 //
 type ActionsState struct {
-  Mutex sync.RWMutex
-  State control.NurseryState
-  Ws    *webserver.WS
-  Cc    *clientConnection.CC
-  CNLog *logger.LoggerType
+  Mutex      sync.RWMutex
+  State      control.NurseryState
+  ActionsDir string
+  WorkDir    string
+  Actions    action.ActionList
+  Ws        *webserver.WS
+  Cc        *clientConnection.CC
+  CNLog     *logger.LoggerType
 }
 
 // Create an ActionsState structure
@@ -57,9 +62,12 @@ func CreateActionsState(
       State:        "up",
       Processes:    0,
     },
-    Ws: ws,
-    Cc: cc,
-    CNLog: config.CNLog,
+    ActionsDir: config.Actions_Dir,
+    WorkDir:    config.Work_Dir,
+    Actions:    make(action.ActionList, 0),
+    Ws:         ws,
+    Cc:         cc,
+    CNLog:      config.CNLog,
   }
 }
 
@@ -70,6 +78,28 @@ func CreateActionsState(
 //
 func (aState *ActionsState) ScanForActions() {
 
+  aState.CNLog.Logf("Looking for actions in [%s]", aState.ActionsDir)
+
+  // walk the ActionsDirectory looking for *.config files 
+  actionDescriptions, err := filepath.Glob(aState.ActionsDir+"/*.config")
+  aState.CNLog.MayBeErrorf(
+    err, "Could not collect *.config files from [%s]", aState.ActionsDir,
+  )
+  
+  // for each file found we use configor to load it and capture the 
+  // description storing the description in the ActionsList 
+  for _, aPath := range actionDescriptions {
+    aState.CNLog.Logf("Loading action description from [%s]", aPath)
+    var anActionDesc action.ActionDescription
+    err := configor.Load(&anActionDesc, aPath)
+    if err == nil && anActionDesc.Name != "" {
+      aState.Actions[anActionDesc.Name] = anActionDesc
+    } else {
+      aState.CNLog.MayBeErrorf(
+        err, "Could not load action description from [%s]", aPath,
+      )
+    }
+  }
 }
 
 // Returns the mapping of the currently registered actions together with a 
@@ -78,7 +108,8 @@ func (aState *ActionsState) ScanForActions() {
 // Part of the action.ActionImpl interface.
 //
 func (aState *ActionsState) ResponseListActionsJSON() action.ActionList {
-  return nil
+  aState.ScanForActions()
+  return aState.Actions
 }
 
 // Returns the http.Template used to formate an HTML response listing the 
@@ -88,7 +119,28 @@ func (aState *ActionsState) ResponseListActionsJSON() action.ActionList {
 // Part of the action.ActionImpl interface.
 //
 func (aState *ActionsState) ResponseListActionsTemplate() *template.Template {
-  return nil
+  actionListTemplateStr := `
+  <head>
+    <title>Available  Actions</title>
+  </head>
+  <body>
+    <h1>Available Actions</h1>
+    <ul>
+{{ range $key, $value := . }}
+      <li>
+        <strong><a href="/action/{{$key}}">{{$value.Name}}</a></strong>
+        <p>{{$value.Desc}}</p>
+      </li>
+{{ end }}
+    </ul>
+  </body>
+`
+  theTemplate := template.New("body")
+  
+  theTemplate, err := theTemplate.Parse(actionListTemplateStr)
+  aState.CNLog.MayBeFatal("Could not parse the internal action list template", err)
+  
+  return theTemplate
 }
 
 // TODO
@@ -103,8 +155,18 @@ func (aState *ActionsState) ActionRunAction(string, *action.ActionConfig) string
 //
 // Part of the action.ActionImpl interface.
 //
-func (aState *ActionsState) ResponseDescribeActionJSON() *action.ActionConfig {
-  return nil
+func (aState *ActionsState) ResponseDescribeActionJSON(
+  actionName string,
+) action.ActionDescription {
+  aState.ScanForActions()
+  actionDesc := aState.Actions[actionName]
+  if actionDesc.Name == "" {
+    actionDesc = action.ActionDescription{
+      Name: "not found",
+      Desc: "could not find the action ["+actionName+"]",
+    }
+  }
+  return actionDesc
 }
 
 // TODO
@@ -114,11 +176,32 @@ func (aState *ActionsState) ResponseDescribeActionJSON() *action.ActionConfig {
 func (aState *ActionsState) ResponseDescribeActionTemplate() *template.Template {
   actionDescTemplateStr := `
   <head>
-    <title>Action description</title>
+    <title>{{.Name}} action description</title>
   </head>
   <body>
-    <h1>Action description</h1>
-    <p>Hello world!</p>
+    <h1>{{.Name}} action description</h1>
+    <p>{{.Desc}}</p>
+    <hr/>
+    <h3>Command line arguments:</h3>
+    <ul>
+{{ range $key, $value := .Args }}
+      <li>
+        <strong>{{$value.Key}}</strong>
+        <p>{{$value.Desc}}</p>
+      </li>
+{{ end }}
+    </ul>
+    <hr/>
+    <h3>Environment variables:</h3>
+    <ul>
+{{ range $key, $value := .Envs }}
+      <li>
+        <strong>{{$value.Key}}</strong>
+        <p>{{$value.Desc}}</p>
+      </li>
+{{ end }}
+    </ul>
+    <hr/>
   </body>
 `
   theTemplate := template.New("body")

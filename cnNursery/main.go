@@ -26,7 +26,9 @@ import (
   "github.com/diSimplex/ConTeXtNursery/logger"
   "github.com/diSimplex/ConTeXtNursery/webserver"
   "math/rand"
+  "net/http"
   "runtime"
+  "strings"
   "time"
 )
 
@@ -79,10 +81,35 @@ Each ConTeXt Nursery in the federation is capable of managing the type
 setting of one or more ConTeXt based (sub)documents in parallel.
 
 `,
-  config.Ca_Cert_Path, config.Cert_Path, config.Key_Path,
-  cnLog,
+    config.Ca_Cert_Path, config.Cert_Path, config.Key_Path,
+    cnLog,
   )
-
+  err := ws.DescribeRoute("/favicon.ico", "The FavIcon")
+  cnLog.MayBeError("Could not describe the route for /favicon.ico", err)
+  
+  err = ws.AddGetHandler(
+    "/favicon.ico",
+    func(w http.ResponseWriter, r *http.Request) {
+      ws.Log.Log("serving originalImages/TeddyBear.ico as favicon.ico")
+      http.ServeFile(w, r, "originalImages/TeddyBear.ico")
+    },
+  )
+  cnLog.MayBeError("Could not add getHandler for /favicon.ico", err)
+  
+  err = ws.DescribeRoute("/static", "Static resources such as the MithrilJS App")
+  cnLog.MayBeError("Could not describe the route for /static", err)
+  
+  err = ws.AddGetHandler(
+    "/static",
+    func(w http.ResponseWriter, r *http.Request) {
+      httpPath := r.URL.Path
+      filePath := strings.TrimPrefix(httpPath, "/")
+      ws.Log.Logf("serving [%s] as [/][%s]", httpPath, filePath)
+      http.ServeFile(w, r, filePath)
+    },
+  )
+  cnLog.MayBeError("Could not add getHandler for /static", err)
+  
   cnActions := CNNurseries.CreateActionsState(config, ws, cc)
   action.AddActionInterface(ws, cnActions)
   

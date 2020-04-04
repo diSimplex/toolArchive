@@ -237,8 +237,8 @@ func AddActionInterface(
   ws *webserver.WS,
   interfaceImpl ActionImpl,
 ) {
-  ws.DescribeRoute("/action", "???action description???")
-  ws.DescribeRoute("/action/output", "???action/output description???")
+  ws.DescribeRoute("/action", "???action description???", true)
+  ws.DescribeRoute("/action/output", "???action/output description???", true)
 
   // interface:
   //   - url: /action

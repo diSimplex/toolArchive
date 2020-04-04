@@ -158,7 +158,7 @@ func AddDiscoveryInterface(
   ws *webserver.WS,
   interfaceImpl DiscoveryImpl,
 ) {
-  ws.DescribeRoute("/heartbeat", "???heartbeat description???")
+  ws.DescribeRoute("/heartbeat", "???heartbeat description???", true)
 
 //  interface:
 //    - url: /heartbeat

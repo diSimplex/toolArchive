@@ -32,10 +32,10 @@ func TestFindRoute(t *testing.T) {
   assert.Equal(t, err.NumPartsFound, 0)
   assert.Equal(t, err.NumParts, 4)
 
-  stdErr := ws.DescribeRoute("/this", "this description")
+  stdErr := ws.DescribeRoute("/this", "this description", true)
   assert.Nil(t, stdErr)
 
-  stdErr = ws.DescribeRoute("/this/is", "this is description")
+  stdErr = ws.DescribeRoute("/this/is", "this is description", true)
   assert.Nil(t, stdErr)
 
   aRoute, err = ws.FindRoute("/this/is")

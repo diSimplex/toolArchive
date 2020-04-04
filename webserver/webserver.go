@@ -39,6 +39,7 @@ type Route struct {
   Prefix        string
   Path          string
   Desc          string
+  Visible       bool
   SubRoutes     []*Route
   GetHandler    http.HandlerFunc
   HeadHandler   http.HandlerFunc
@@ -93,7 +94,7 @@ func CreateWebServer(
   //
   ws          := WS{}
   ws.Log       = cnLog
-  ws.BaseRoute = ws.CreateNewRoute("/", "", description)
+  ws.BaseRoute = ws.CreateNewRoute("/", "", description, false)
   ws.HostPort  = host + ":" + port
   ws.Log.Logf("listening at [%s]\n", ws.HostPort)
   ws.Listener, err = tls.Listen("tcp",  ws.HostPort, tlsConfig)
@@ -216,11 +217,15 @@ func (ws *WS) FindRoute(url string) (*Route, *PartialRouteError) {
   return curRoute, nil
 }
 
-func (ws *WS) CreateNewRoute(url, prefix, description string) *Route {
+func (ws *WS) CreateNewRoute(
+  url, prefix, description string,
+  visible bool,
+) *Route {
   aNewRoute := &Route{
-    Desc:       description,
-    Path:       url,
-    Prefix:     prefix,
+    Desc:    description,
+    Path:    url,
+    Prefix:  prefix,
+    Visible: visible,
   }
 
   aNewRoute.GetHandler = func (w http.ResponseWriter, r *http.Request) {
@@ -241,7 +246,9 @@ func (ws *WS) CreateNewRoute(url, prefix, description string) *Route {
 // Returns an error if the route already exists, OR if a parent path does
 // not exist.
 //
-func (ws *WS) DescribeRoute(url, description string) error {
+// The route is marked as "Visible" if visible is true.
+//
+func (ws *WS) DescribeRoute(url, description string, visible bool) error {
 
   aRoute, err := ws.FindRoute(url)
   if err == nil && aRoute.Path == url {
@@ -249,7 +256,7 @@ func (ws *WS) DescribeRoute(url, description string) error {
   }
 
   if err.NumPartsFound+1 == err.NumParts {
-    aNewRoute := ws.CreateNewRoute(url, err.CurPrefix, description)
+    aNewRoute := ws.CreateNewRoute(url, err.CurPrefix, description, visible)
     aRoute.SubRoutes     = append(aRoute.SubRoutes, aNewRoute)
     return nil
   }
@@ -266,10 +273,12 @@ func (ws *WS) RouteDescriptionTemplate() *template.Template {
     <h1>ConTeXt Nursery on {{.Path}}</h1>
     <ul>
 {{ range .SubRoutes }}
+{{   if .Visible }}
       <li>
         <strong><a href="{{.Path}}">{{.Path}}</a></strong>
         <p>{{.Desc}}</p>
       </li>
+{{   end }}
 {{ end }}
     </ul>
  </body>
@@ -340,6 +349,59 @@ func (ws *WS) AddDeleteHandler(url string, handlerFunc http.HandlerFunc) error {
   aRoute, err := ws.FindRoute(url)
   if err != nil { return err }
   aRoute.DeleteHandler = handlerFunc
+  return nil
+}
+
+// Add a Get Handler for serving static files.
+//
+// This method adds the staticRoute and "/favicon.ico" (hidden) routes. 
+//
+// The "/favicon.ico" is served from the faviconPath, all other files are 
+// served from the staticPath directory (which, if relative, is served 
+// releative to the current directory). 
+//
+func (ws *WS) AddStaticFileHandlers(
+  faviconPath string,
+  staticRoute string, 
+  staticPath  string,
+) error {
+  err := ws.DescribeRoute("/favicon.ico", "The FavIcon", false)
+  if err != nil {
+    fmt.Errorf("Could not describe the route for /favicon.ico %w", err)
+  } 
+
+  err = ws.AddGetHandler(
+    "/favicon.ico",
+    func(w http.ResponseWriter, r *http.Request) {
+      ws.Log.Logf("serving [%s] as favicon.ico", faviconPath)
+      http.ServeFile(w, r, faviconPath)
+    },
+  )
+  if err != nil {
+    fmt.Errorf("Could not add getHandler for /favicon.ico %w", err)
+  }
+  
+  err = ws.DescribeRoute(
+    staticRoute,
+    "Static resources such as the MithrilJS App",
+    false,
+  )
+  if err != nil {
+    fmt.Errorf("Could not describe the route for [%s] %w", staticRoute, err)
+  }
+  
+  err = ws.AddGetHandler(
+    staticRoute,
+    func(w http.ResponseWriter, r *http.Request) {
+      httpPath := r.URL.Path
+      filePath := staticPath+strings.TrimPrefix(httpPath, staticRoute)
+      ws.Log.Logf("serving [%s] from [%s]", httpPath, filePath)
+      http.ServeFile(w, r, filePath)
+    },
+  )
+  if err != nil {
+    fmt.Errorf("Could not add getHandler for /static %w", err)
+  }
   return nil
 }
 

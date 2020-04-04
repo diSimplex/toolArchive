@@ -183,8 +183,8 @@ func AddControlInterface(
   ws *webserver.WS,
   interfaceImpl ControlImpl,
 ) {
-  ws.DescribeRoute("/control",     "???control description???")
-  ws.DescribeRoute("/control/all", "???control/all description???")
+  ws.DescribeRoute("/control",     "???control description???", true)
+  ws.DescribeRoute("/control/all", "???control/all description???", true)
 
 //  interface:
 //    - url: /control

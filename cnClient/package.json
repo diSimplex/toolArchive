@@ -1,0 +1,20 @@
+{
+  "name": "cnClient",
+  "version": "1.0.0",
+  "description": "A [Mithril](https://mithril.js.org/) based web client for the ConTeXt Nurseries RESTful HTTP interfaces.",
+  "main": "index.js",
+  "scripts": {
+    "start": "webpack src/index.js --output static/app.js -d --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "mithril": "^2.0.4"
+  },
+  "devDependencies": {
+    "eslint": "^6.8.0",
+    "webpack": "^4.42.1",
+    "webpack-cli": "^3.3.11"
+  }
+}

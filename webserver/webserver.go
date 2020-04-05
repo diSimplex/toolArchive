@@ -48,6 +48,14 @@ type Route struct {
   DeleteHandler http.HandlerFunc
 }
 
+type RouteDesc struct {
+  Prefix        string
+  Path          string
+  Desc          string
+  Visible       bool
+  SubRoutes     []*RouteDesc
+}
+
 type WS struct {
   Listener   net.Listener
   Server    *http.Server
@@ -219,6 +227,26 @@ func (ws *WS) FindRoute(url string) (*Route, *PartialRouteError) {
   return curRoute, nil
 }
 
+func CreateRouteDesc(aRoute *Route) *RouteDesc {
+  routeDesc := &RouteDesc{
+    Desc:      aRoute.Desc,
+    Path:      aRoute.Path,
+    Prefix:    aRoute.Prefix,
+    Visible:   aRoute.Visible,
+  }
+    
+  for _, aSubRoute := range aRoute.SubRoutes {
+    routeDesc.SubRoutes = append(routeDesc.SubRoutes, &RouteDesc{
+      Desc:    aSubRoute.Desc,
+      Path:    aSubRoute.Path,
+      Prefix:  aSubRoute.Prefix,
+      Visible: aSubRoute.Visible,
+    })
+  }
+  
+  return routeDesc
+}
+
 func (ws *WS) CreateNewRoute(
   url, prefix, description string,
   visible bool,
@@ -231,13 +259,7 @@ func (ws *WS) CreateNewRoute(
   }
 
   aNewRoute.GetHandler = func (w http.ResponseWriter, r *http.Request) {
-    if ws.RepliedInJson(w, r, Route{
-      Desc:      aNewRoute.Desc,
-      Path:      aNewRoute.Path,
-      Prefix:    aNewRoute.Prefix,
-      Visible:   aNewRoute.Visible,
-      SubRoutes: aNewRoute.SubRoutes,      
-    }) { return }
+    if ws.RepliedInJson(w, r, CreateRouteDesc(aNewRoute)) { return }
 
     rdTemplate := ws.RouteDescriptionTemplate()
     err := rdTemplate.Execute(w, aNewRoute)
@@ -375,13 +397,8 @@ func (ws *WS) AddStaticFileHandlers(
   staticPath   string,
 ) error {
   ws.BaseRoute.GetHandler = func (w http.ResponseWriter, r *http.Request) {
-    if ws.RepliedInJson(w, r, Route{
-      Desc:      ws.BaseRoute.Desc,
-      Path:      ws.BaseRoute.Path,
-      Prefix:    ws.BaseRoute.Prefix,
-      Visible:   ws.BaseRoute.Visible,
-      SubRoutes: ws.BaseRoute.SubRoutes,      
-    }) { return }
+    
+    if ws.RepliedInJson(w, r, CreateRouteDesc(ws.BaseRoute)) { return }
     ws.Log.Logf("serving [%s] as \"/\"", baseHtmlPath)
     http.ServeFile(w, r, baseHtmlPath)
   }

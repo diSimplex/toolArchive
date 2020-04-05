@@ -14,16 +14,18 @@
 
 var m = require("mithril")
 
+var layout = require("../layout")
+
 module.exports = {
   routes: {
     "/control" : {
       view: function() {
-        return m("h1", "Hello from Control")
+        return m(layout, m("h1", "Hello from Control"))
       }
     },
     "/control/all" : {
       view: function() {
-        return m("h1", "Hello from Control All")
+        return m(layout, m("h1", "Hello from Control All"))
       }
     }
   }

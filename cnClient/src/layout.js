@@ -18,7 +18,7 @@ module.exports = {
   view: function(vnode) {
     return m("main.layout", [
       m("nav.nav-menu", [
-        m(m.route.Link, {href: "/",      class: "nav-menu-link"}, "ConTeXt Nursery"),
+        m(m.route.Link, {href: "/home",      class: "nav-menu-link"}, "ConTeXt Nursery"),
         m(m.route.Link, {href: "/action", class: "nav-menu-link"}, "Actions"),
         m(m.route.Link, {href: "/heartbeat",  class: "nav-menu-link"}, "Discovery"),
         m(m.route.Link, {href: "/control",  class: "nav-menu-link"}, "Control")

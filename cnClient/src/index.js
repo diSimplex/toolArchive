@@ -17,20 +17,14 @@ import m from "mithril";
 // Import JavaScript descriptions of the the interfaces
 //
 var action    = require("./interfaces/action")
-var discovery = require("./interfaces/discovery")
 var control   = require("./interfaces/control")
+var discovery = require("./interfaces/discovery")
+var home      = require("./interfaces/home")
 //
-// Now import the main view
-//
-var Layout    = require("./views/Layout")
 
-m.route(document.body, "/", {
+m.route(document.body, "/home", {
   ...action.routes,
   ...discovery.routes,
   ...control.routes,
-  "/" : {
-    view: function() {
-      return m(Layout)
-    }
-  }
+  ...home.routes
 })

@@ -24,7 +24,7 @@ import (
 func TestFindRoute(t *testing.T) {
 
   ws := WS{}
-  ws.BaseRoute = &Route{}
+  ws.BaseRoute = ws.CreateNewRoute("/", "", "base route", true)
 
   aRoute, err := ws.FindRoute("/this/is/a/test")
   assert.NotNil(t, aRoute)
@@ -32,6 +32,22 @@ func TestFindRoute(t *testing.T) {
   assert.Equal(t, err.NumPartsFound, 0)
   assert.Equal(t, err.NumParts, 4)
 
+  aRoute, err = ws.FindRoute("/")
+  assert.NotNil(t, aRoute)
+  assert.Nil(t, err)
+  assert.Equal(t, aRoute, ws.BaseRoute)
+    
+  aRoute, err = ws.FindRoute("/index.html")
+  assert.NotNil(t, aRoute)
+  assert.NotNil(t, err)
+  assert.Equal(t, aRoute, ws.BaseRoute)
+  assert.Equal(t, aRoute.Path, "/")
+  assert.Equal(t, aRoute.Prefix, "")
+  assert.Equal(t, aRoute.Desc, "base route")
+  assert.Equal(t, err.NumPartsFound, 0)
+  assert.Equal(t, err.NumParts, 1)
+  assert.Equal(t, err.CurPrefix, "index.html")
+  
   stdErr := ws.DescribeRoute("/this", "this description", true)
   assert.Nil(t, stdErr)
 

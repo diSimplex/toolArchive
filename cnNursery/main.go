@@ -84,6 +84,7 @@ setting of one or more ConTeXt based (sub)documents in parallel.
   )
 
   err := ws.AddStaticFileHandlers(
+    "static/index.html",
     "static/images/TeddyBear.ico",
     "/static",
     "static",

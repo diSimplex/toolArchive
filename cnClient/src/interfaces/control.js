@@ -18,12 +18,12 @@ module.exports = {
   routes: {
     "/control" : {
       view: function() {
-        return m("Hello from Control")
+        return m("h1", "Hello from Control")
       }
     },
     "/control/all" : {
       view: function() {
-        return m("Hello from Control All")
+        return m("h1", "Hello from Control All")
       }
     }
   }

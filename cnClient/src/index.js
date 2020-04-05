@@ -24,11 +24,13 @@ var control   = require("./interfaces/control")
 //
 var Layout    = require("./views/Layout")
 
-m.route(document.body, "/default", {
+m.route(document.body, "/", {
   ...action.routes,
   ...discovery.routes,
   ...control.routes,
-  view: function() {
-    return m(Layout)
+  "/" : {
+    view: function() {
+      return m(Layout)
+    }
   }
 })

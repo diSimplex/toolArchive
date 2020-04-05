@@ -94,7 +94,7 @@ func CreateWebServer(
   //
   ws          := WS{}
   ws.Log       = cnLog
-  ws.BaseRoute = ws.CreateNewRoute("/", "", description, false)
+  ws.BaseRoute = ws.CreateNewRoute("/", "", description, true)
   ws.HostPort  = host + ":" + port
   ws.Log.Logf("listening at [%s]\n", ws.HostPort)
   ws.Listener, err = tls.Listen("tcp",  ws.HostPort, tlsConfig)
@@ -190,7 +190,9 @@ func (pr *PartialRouteError) Error() string {
 //
 func (ws *WS) FindRoute(url string) (*Route, *PartialRouteError) {
   curRoute := ws.BaseRoute
-  if curRoute == nil { return nil, nil } // signal that we need to a baseRoute
+  if curRoute == nil { return nil, nil } // signal that we need to add a baseRoute
+  if url == "/" { return curRoute, nil } // This IS the base route
+  
   urlParts := strings.Split(strings.TrimPrefix(url, "/"), "/")
   for urlPartNum, aUrlPart := range urlParts {
     foundRoute := false
@@ -229,7 +231,13 @@ func (ws *WS) CreateNewRoute(
   }
 
   aNewRoute.GetHandler = func (w http.ResponseWriter, r *http.Request) {
-    // we are replying to a (human) browser
+    if ws.RepliedInJson(w, r, Route{
+      Desc:      aNewRoute.Desc,
+      Path:      aNewRoute.Path,
+      Prefix:    aNewRoute.Prefix,
+      Visible:   aNewRoute.Visible,
+      SubRoutes: aNewRoute.SubRoutes,      
+    }) { return }
 
     rdTemplate := ws.RouteDescriptionTemplate()
     err := rdTemplate.Execute(w, aNewRoute)
@@ -361,10 +369,23 @@ func (ws *WS) AddDeleteHandler(url string, handlerFunc http.HandlerFunc) error {
 // releative to the current directory). 
 //
 func (ws *WS) AddStaticFileHandlers(
-  faviconPath string,
-  staticRoute string, 
-  staticPath  string,
+  baseHtmlPath string,
+  faviconPath  string,
+  staticRoute  string, 
+  staticPath   string,
 ) error {
+  ws.BaseRoute.GetHandler = func (w http.ResponseWriter, r *http.Request) {
+    if ws.RepliedInJson(w, r, Route{
+      Desc:      ws.BaseRoute.Desc,
+      Path:      ws.BaseRoute.Path,
+      Prefix:    ws.BaseRoute.Prefix,
+      Visible:   ws.BaseRoute.Visible,
+      SubRoutes: ws.BaseRoute.SubRoutes,      
+    }) { return }
+    ws.Log.Logf("serving [%s] as \"/\"", baseHtmlPath)
+    http.ServeFile(w, r, baseHtmlPath)
+  }
+  
   err := ws.DescribeRoute("/favicon.ico", "The FavIcon", false)
   if err != nil {
     fmt.Errorf("Could not describe the route for /favicon.ico %w", err)

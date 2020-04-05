@@ -18,7 +18,7 @@ module.exports = {
   routes: {
     "/heartbeat" : {
       view: function() {
-        return m("Hello from HeartBeat")
+        return m("h1", "Hello from HeartBeat")
       }
     }
   }

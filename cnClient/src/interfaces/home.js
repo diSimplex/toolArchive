@@ -27,6 +27,12 @@ var Home = {
       url: "/",
     }).then(function(result){
       console.dir(result, {depth: null, colors: true});
+      if ( result == null ) {
+        result = {
+          "Desc" : "",
+          "SubRoutes" : []
+        };
+      }
       Home.data = result;
     })
   },

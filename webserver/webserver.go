@@ -130,7 +130,7 @@ func (ws *WS) RepliedInJson(
   replyInJson := false
   for _, anAcceptValue := range r.Header["Accept"] {
     if strings.Contains(strings.ToLower(anAcceptValue), "json") {
-      ws.Log.Logf("Replying in JSON [%s]", strings.Join(r.Header["Accept"], "|"))
+      ws.Log.Logf("Replying in JSON [%s]\n\n", strings.Join(r.Header["Accept"], "|"))
       replyInJson = true
       break
     }

@@ -43,7 +43,7 @@ func SendPeriodicHeartBeats(
 ) {
   for {
     time.Sleep(time.Duration(rand.Int63n(10)) * time.Second)
-    config.CNLog.Logf("\n\n\nheartBeat state: [%s]\n\n\n", cnState.GetState())
+    //config.CNLog.Logf("\n\n\nheartBeat state: [%s]\n\n\n", cnState.GetState())
     ni := discovery.NurseryInfo{
       Name: config.Name,
       Port: config.Port,
@@ -85,9 +85,9 @@ func SendPeriodicHeartBeats(
     ni.Swap.Total = swapMem.Total
     ni.Swap.Used  = swapMem.Used
 
-    config.CNLog.Json("beat request ", "ni", ni)
+    //config.CNLog.Json("beat request ", "ni", ni)
     niInfoMap := discovery.SendDiscoveryMessage(config.Primary_Url, ni, cc)
-    config.CNLog.Json("beat response ", "niInfoMap", niInfoMap)
+    //config.CNLog.Json("beat response ", "niInfoMap", niInfoMap)
     cnInfoMap.ActionUpdateNurseryInfoMap(niInfoMap)
   }
 

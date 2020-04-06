@@ -16,11 +16,93 @@ var m = require("mithril")
 
 var layout = require("../layout")
 
-module.exports = {
+var Control = {
+  data: {},
+  storeData: function(result) {
+    console.dir(result, {depth: null, colors: true});
+    if ( result == null ) {
+      result = {
+      };
+    }
+    Control.data = result;
+  },
+  oninit: function() {
+    m.request({
+      method: "GET",
+      url: "/control"
+    }).then(function(result) {
+      Control.storeData(result);
+    })
+  },
+  changeState: function(baseUrl, urlModifier, newState) {
+    m.request({
+      method: "PUT",
+      url: baseUrl
+        .concat("/control")
+        .concat(urlModifier)
+        .concat("/")
+        .concat(newState)
+    }).then(function(result) {
+      Control.storeData(result)
+    })
+  },
+  changeStateButton: function(key, newState, label) {
+    return m("button", {
+      onclick: function() {
+        Control.changeState(
+          Control.data[key].Base_Url,
+          Control.data[key].Url_Modifier,
+          newState
+        )
+      }
+    }, label)
+  },
+  dataIterator: function() {
+    console.dir(Control.data, { depth: null, colors: true });
+    result = [
+      m("tr", 
+        m("th", { colspan: 2}),
+        m("th", { colspan: 4}, "State")
+      ),
+      m("tr", 
+        m("th", { colspan: 2}),
+        m("th", { colspan: 4}, 
+          m("hr", { style: { "margin-top": "0em", "margin-bottom": "0em" } } )
+        )
+      ),
+      m("tr", 
+        m("th", "Name"),
+        m("th", "Processes"),
+        m("th", "Current"),
+        m("th", "Up"),
+        m("th", "Pause"),
+        m("th", "Kill")
+      )
+    ];
+    for (var key in Control.data) {
+      result.push(
+        m("tr",
+          m("td", key),
+          m("td", Control.data[key].Processes),
+          m("td", Control.data[key].State),
+          m("td", Control.changeStateButton(key, "up",     "Up")),
+          m("td", Control.changeStateButton(key, "paused", "Pause")),
+          m("td", Control.changeStateButton(key, "kill",   "Kill"))
+        )
+      )
+    }
+    return result;
+  },
+  view: function(vnode) {
+    return m("main.layout", [
+      m("h1", "Federation Control Information"),
+      m("table", Control.dataIterator())
+    ])
+  },
   routes: {
     "/control" : {
       view: function() {
-        return m(layout, m("h1", "Hello from Control"))
+        return m(layout, m(Control))
       }
     },
     "/control/all" : {
@@ -30,3 +112,5 @@ module.exports = {
     }
   }
 }
+
+module.exports = Control

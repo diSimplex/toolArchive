@@ -19,7 +19,7 @@ package discovery
 
 import (
   "encoding/json"
-  "fmt"
+  //"fmt"
   "github.com/diSimplex/ConTeXtNursery/clientConnection"
   "github.com/diSimplex/ConTeXtNursery/webserver"
   "html/template"
@@ -116,11 +116,11 @@ func SendDiscoveryMessage(
   jsonBytes, err := json.Marshal(ni)
   cc.Log.MayBeError("Could not marshal NurseryInfo", err)
 
-  fmt.Printf("\nbeat request [%s]\n\n", string(jsonBytes))
+  //fmt.Printf("\nbeat request [%s]\n\n", string(jsonBytes))
 
   respBody := cc.SendJsonMessage(primaryUrl, "/heartbeat", http.MethodPost, jsonBytes)
 
-  fmt.Printf("\nbeat response [%s]\n\n", string(respBody))
+  //fmt.Printf("\nbeat response [%s]\n\n", string(respBody))
 
   var niMap NurseryInfoMap
 
@@ -202,7 +202,7 @@ func AddDiscoveryInterface(
         http.Error(w, "can't read body", http.StatusBadRequest)
         return
       }
-      ws.Log.Log("heartBeat body: "+string(body))
+//      ws.Log.Log("heartBeat body: "+string(body))
       var ni NurseryInfo
       err = json.Unmarshal(body, &ni)
       if err != nil {

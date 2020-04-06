@@ -24,6 +24,10 @@ var Discovery = {
       url: "/heartbeat",
     }).then(function(result) {
       console.dir(result, {depth: null, colors: true});
+      if (result == null) {
+        result = {
+        };
+      }
       Discovery.data = result;
     })
   },

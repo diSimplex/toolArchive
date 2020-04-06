@@ -82,8 +82,8 @@ var Discovery = {
       m("table", Discovery.dataIterator())
     ])
   },
-  routes: {
-    "/heartbeat" : {
+  addRoutes: function(routes) {
+    routes["/heartbeat"] = {
       view: function() {
         return m(layout, m(Discovery))
       }

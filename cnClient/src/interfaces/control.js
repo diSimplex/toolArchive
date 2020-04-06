@@ -99,15 +99,10 @@ var Control = {
       m("table", Control.dataIterator())
     ])
   },
-  routes: {
-    "/control" : {
+  addRoutes: function(routes) {
+    routes["/control"] = {
       view: function() {
         return m(layout, m(Control))
-      }
-    },
-    "/control/all" : {
-      view: function() {
-        return m(layout, m("h1", "Hello from Control All"))
       }
     }
   }

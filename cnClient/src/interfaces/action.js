@@ -14,19 +14,17 @@
 
 var m = require("mithril")
 
-var layout = require("../layout")
+var actionRoutes = {}
 
-module.exports = {
-  routes: {
-    "/action" : {
-      view: function() {
-        return m(layout, m("h1", "Hello from Action"))
-      }
-    },
-    "/action/output" : {
-      view: function() {
-        return m(layout, m("h1", "Hello from Action Output"))
-      }
+require("./action/action").addRoutes(actionRoutes)
+require("./action/actionConfig").addRoutes(actionRoutes)
+
+var Action = {
+  addRoutes: function(routes) {
+    for (var key in actionRoutes) {
+      routes[key] = actionRoutes[key]
     }
   }
 }
+
+module.exports = Action

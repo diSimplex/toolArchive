@@ -45,7 +45,7 @@ var Home = {
             m("strong", 
               m(m.route.Link,
                 { href: aSubRoute.Path },
-                aSubRoute.Path
+                aSubRoute.Prefix
               )
             ),
             m("p", aSubRoute.Desc)
@@ -54,8 +54,8 @@ var Home = {
       )
     ])
   },
-  routes: {
-    "/home" : {
+  addRoutes: function(routes) {
+    routes["/home"] = {
       view: function() {
         return m(layout, m(Home))
       }

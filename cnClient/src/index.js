@@ -12,19 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import m from "mithril";
+var m = require("mithril")
 
-// Import JavaScript descriptions of the the interfaces
-//
-var action    = require("./interfaces/action")
-var control   = require("./interfaces/control")
-var discovery = require("./interfaces/discovery")
-var home      = require("./interfaces/home")
-//
+var routes = {}
 
-m.route(document.body, "/home", {
-  ...action.routes,
-  ...discovery.routes,
-  ...control.routes,
-  ...home.routes
-})
+require("./interfaces/action").addRoutes(routes)
+require("./interfaces/control").addRoutes(routes)
+require("./interfaces/discovery").addRoutes(routes)
+require("./interfaces/home").addRoutes(routes)
+
+console.dir(routes, {depth: null, colors: true})
+
+m.route(document.body, "/home", routes)

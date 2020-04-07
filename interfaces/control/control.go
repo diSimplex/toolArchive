@@ -22,7 +22,6 @@ import (
   "fmt"
   "github.com/diSimplex/ConTeXtNursery/clientConnection"
   "github.com/diSimplex/ConTeXtNursery/webserver"
-  "html/template"
   "net/http"
   "strings"
 )
@@ -81,13 +80,6 @@ type ControlImpl interface {
   // complete.
   //
   ResponseListFederationStatusJSON() *FederationStateMap
-
-  // Return the http.Template used to format an HTML response listing the
-  // control status information about the federation of ConTeXt Nurseries.
-  //
-  // This template expects to be bound to an FederationStateMap
-  //
-  ResponseListFederationStatusTemplate() *template.Template
 }
 
 // Send a control message using the client connection
@@ -197,10 +189,7 @@ func AddControlInterface(
     "/control",
     func(w http.ResponseWriter, r *http.Request) {
       fedMap := interfaceImpl.ResponseListFederationStatusJSON()
-      if ws.RepliedInJson(w, r, fedMap) { return }
-      fedMapTemp := interfaceImpl.ResponseListFederationStatusTemplate()
-      err := fedMapTemp.Execute(w, fedMap)
-      ws.Log.MayBeError("Could not execute fedMapTemplate", err)
+      ws.ReplyInJson(w, r, fedMap)
     },
   )
   ws.Log.MayBeError("Could not add GET handler for [/control]", err)
@@ -234,11 +223,7 @@ func AddControlInterface(
 
       fedMap := interfaceImpl.ResponseListFederationStatusJSON()
       ws.Log.Json("Control Reply: ", "fedMap", fedMap)
-      if ws.RepliedInJson(w, r, fedMap) { return }
-//      fedMapTemp := interfaceImpl.ResponseListFederationStatusTemplate()
-//      err := fedMapTemp.Execute(w, fedMap)
-//      ws.Log.MayBeError("Could not execute fedMapTemplate", err)
-      http.Redirect(w, r, "/control", http.StatusSeeOther)
+      ws.ReplyInJson(w, r, fedMap)
     },
   )
   ws.Log.MayBeError("Could not add PUT handler for [/control]", err)
@@ -275,11 +260,7 @@ func AddControlInterface(
 
       fedMap := interfaceImpl.ResponseListFederationStatusJSON()
       ws.Log.Json("Control Reply: ", "fedMap", fedMap)
-      if ws.RepliedInJson(w, r, fedMap) { return }
-//      fedMapTemp := interfaceImpl.ResponseListFederationStatusTemplate()
-//      err := fedMapTemp.Execute(w, fedMap)
-//      ws.Log.MayBeError("Could not execute fedMapTemplate", err)
-      http.Redirect(w, r, "/control", http.StatusSeeOther)
+      ws.ReplyInJson(w, r, fedMap)
     },
   )
   ws.Log.MayBeError("Could not add PUT handler for [/control/all]", err)

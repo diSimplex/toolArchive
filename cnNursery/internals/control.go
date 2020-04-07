@@ -21,7 +21,6 @@ import (
   "github.com/diSimplex/ConTeXtNursery/interfaces/discovery"
   "github.com/diSimplex/ConTeXtNursery/logger"
   "github.com/diSimplex/ConTeXtNursery/webserver"
-  "html/template"
   "sync"
 )
 
@@ -159,72 +158,4 @@ func (cnState *CNState) ResponseListFederationStatusJSON() *control.FederationSt
     Processes:    fedNumProcesses,
   }
   return &fedStateMap
-}
-
-// Return the http.Template used to format an HTML response listing the 
-// control status information about the federation of ConTeXt Nurseries. 
-//
-// This template expects to be bound to an FederationStateMap
-//
-// Part of the control.ControlImpl interface.
-//
-func (cnState *CNState) ResponseListFederationStatusTemplate() *template.Template {
-  controlTemplateStr := `
-  <head>
-    <title>Federation Control Information</title>
-    <meta http-equiv="refresh" content="5" />
-  </head>
-  <body>
-    <h1>Federation Control Information</h1>
-    <table>
-      <tr>
-        <th colspan=2></th>
-        <th colspan=4>State</th>
-      </tr>
-      <tr>
-        <th colspan=2></th>
-        <th colspan=4><hr style="margin-top:0em;margin-bottom:0em;" /></th>
-      </tr>
-      <tr>
-        <th>Name</th>
-        <th>Processes</th>
-        <th>Current</th>
-        <th>Up</th>
-        <th>Pause</th>
-        <th>Kill</th>
-      </tr>
-{{ range $key, $value := . }}
-      <tr>
-        <td><a href="{{$value.Base_Url}}">{{$key}}</a></td>
-        <td>{{$value.Processes}}</td>
-        <td>{{$value.State}}</td>
-        <td>
-          <form method="post"
-           action="{{$value.Base_Url}}/control{{$value.Url_Modifier}}/up?method=put">
-            <input type="submit" value="Up" />
-          </form>
-        </td>
-        <td>
-          <form method="post"
-           action="{{$value.Base_Url}}/control{{$value.Url_Modifier}}/paused?method=put">
-            <input type="submit" value="Pause" />
-          </form>
-        </td>
-        <td>
-          <form method="post"
-           action="{{$value.Base_Url}}/control{{$value.Url_Modifier}}/kill?method=put">
-            <input type="submit" value="Kill" />
-          </form>
-        </td>
-      </tr>
-{{ end }}
-    </table>
-  </body>
-`
-  theTemplate := template.New("body")
-
-  theTemplate, err := theTemplate.Parse(controlTemplateStr)
-  cnState.CNLog.MayBeFatal("Could not parse the internal control template", err)
-
-  return theTemplate
 }

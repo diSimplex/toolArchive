@@ -21,7 +21,6 @@ import (
   "github.com/diSimplex/ConTeXtNursery/logger"
   "github.com/diSimplex/ConTeXtNursery/webserver"
   "github.com/jinzhu/configor"
-  "html/template"
   "io"
   "path/filepath"
   "sync"
@@ -112,37 +111,6 @@ func (aState *ActionsState) ResponseListActionsJSON() action.ActionList {
   return aState.Actions
 }
 
-// Returns the http.Template used to formate an HTML response listing the 
-// currently registered actions together with a brief description of each 
-// action. 
-//
-// Part of the action.ActionImpl interface.
-//
-func (aState *ActionsState) ResponseListActionsTemplate() *template.Template {
-  actionListTemplateStr := `
-  <head>
-    <title>Available  Actions</title>
-  </head>
-  <body>
-    <h1>Available Actions</h1>
-    <ul>
-{{ range $key, $value := . }}
-      <li>
-        <strong><a href="/action/{{$key}}">{{$value.Name}}</a></strong>
-        <p>{{$value.Desc}}</p>
-      </li>
-{{ end }}
-    </ul>
-  </body>
-`
-  theTemplate := template.New("body")
-  
-  theTemplate, err := theTemplate.Parse(actionListTemplateStr)
-  aState.CNLog.MayBeFatal("Could not parse the internal action list template", err)
-  
-  return theTemplate
-}
-
 // TODO
 //
 // Part of the action.ActionImpl interface.
@@ -173,49 +141,6 @@ func (aState *ActionsState) ResponseDescribeActionJSON(
 //
 // Part of the action.ActionImpl interface.
 //
-func (aState *ActionsState) ResponseDescribeActionTemplate() *template.Template {
-  actionDescTemplateStr := `
-  <head>
-    <title>{{.Name}} action description</title>
-  </head>
-  <body>
-    <h1>{{.Name}} action description</h1>
-    <p>{{.Desc}}</p>
-    <hr/>
-    <h3>Command line arguments:</h3>
-    <ul>
-{{ range $key, $value := .Args }}
-      <li>
-        <strong>{{$value.Key}}</strong>
-        <p>{{$value.Desc}}</p>
-      </li>
-{{ end }}
-    </ul>
-    <hr/>
-    <h3>Environment variables:</h3>
-    <ul>
-{{ range $key, $value := .Envs }}
-      <li>
-        <strong>{{$value.Key}}</strong>
-        <p>{{$value.Desc}}</p>
-      </li>
-{{ end }}
-    </ul>
-    <hr/>
-  </body>
-`
-  theTemplate := template.New("body")
-  
-  theTemplate, err := theTemplate.Parse(actionDescTemplateStr)
-  aState.CNLog.MayBeFatal("Could not parse the internal action description template", err)
-  
-  return theTemplate
-}
-
-// TODO
-//
-// Part of the action.ActionImpl interface.
-//
 func (aState *ActionsState) ResponseListActionsWithRunsJSON() map[string]string {
   return make(map[string]string, 0)
 }
@@ -224,24 +149,8 @@ func (aState *ActionsState) ResponseListActionsWithRunsJSON() map[string]string 
 //
 // Part of the action.ActionImpl interface.
 //
-func (aState *ActionsState) ResponseListActionsWithRunsTemplate() *template.Template {
-  return nil
-}
-
-// TODO
-//
-// Part of the action.ActionImpl interface.
-//
 func (aState *ActionsState) ResponseListRunsForActionJSON(string) map[string]string {
   return make(map[string]string, 0)
-}
-
-// TODO
-//
-// Part of the action.ActionImpl interface.
-//
-func (aState *ActionsState) ResponseRunsForActionTemplate() *template.Template {
-  return nil
 }
 
 // TODO
@@ -258,28 +167,12 @@ func (aState *ActionsState) ResponseListOutputsForActionRunJSON(
 //
 // Part of the action.ActionImpl interface.
 //
-func (aState *ActionsState) ResponseOutputsForActionRunTemplate() *template.Template {
-  return nil
-}
-
-// TODO
-//
-// Part of the action.ActionImpl interface.
-//
 func (aState *ActionsState) ResponseOutputFileForActionRunReader(
   string, string, string,
 ) (
   io.Reader, string, error,
 ) {
   return nil, "", nil
-}
-
-// TODO
-//
-// Part of the action.ActionImpl interface.
-//
-func (aState *ActionsState) ResponseOutputFileTemplate() *template.Template {
-  return nil
 }
 
 // TODO

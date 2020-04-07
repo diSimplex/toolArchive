@@ -23,7 +23,6 @@ import (
   "encoding/json"
   "fmt"
   "github.com/diSimplex/ConTeXtNursery/logger"
-  "html/template"
   "io"
   "io/ioutil"
   "net"
@@ -116,38 +115,22 @@ func CreateWebServer(
   return &ws
 }
 
-// Reply in JSON marshaled from the given value IF the "Accept" Header
-// contains the string "json".
+// Reply in JSON marshaled from the given value.
 //
-func (ws *WS) RepliedInJson(
+func (ws *WS) ReplyInJson(
   w http.ResponseWriter,
   r *http.Request,
   value interface{},
-) bool {
-  //
-  // determine if we are replying in JSON
-  //
-  replyInJson := false
-  for _, anAcceptValue := range r.Header["Accept"] {
-    if strings.Contains(strings.ToLower(anAcceptValue), "json") {
-      ws.Log.Logf("Replying in JSON [%s]\n\n", strings.Join(r.Header["Accept"], "|"))
-      replyInJson = true
-      break
-    }
+) {
+  jsonBytes, err := json.Marshal(value)
+  if err != nil {
+    ws.Log.MayBeError("Could not json.marshal value in repliedInJson", err)
+    jsonBytes = []byte{}
   }
-
-  if replyInJson {
-    jsonBytes, err := json.Marshal(value)
-    if err != nil {
-      ws.Log.MayBeError("Could not json.marshal value in repliedInJson", err)
-      jsonBytes = []byte{}
-    }
-    w.Write(jsonBytes)
-  }
-  return replyInJson
+  w.Write(jsonBytes)
 }
 
-func (ws *WS) RepliedAsRawFile(
+func (ws *WS) ReplyAsRawFile(
   w http.ResponseWriter,
   r *http.Request,
   file io.Reader,
@@ -259,14 +242,16 @@ func (ws *WS) CreateNewRoute(
   }
 
   aNewRoute.GetHandler = func (w http.ResponseWriter, r *http.Request) {
-    if ws.RepliedInJson(w, r, CreateRouteDesc(aNewRoute)) { return }
-
-    rdTemplate := ws.RouteDescriptionTemplate()
-    err := rdTemplate.Execute(w, aNewRoute)
-    if err != nil {
-      ws.Log.MayBeError("Could not execute base page template", err)
-      w.Write([]byte("Could not provide any ConTeXt Nursery information\nPlease try again!"))
-    }
+    ws.ReplyInJson(w, r, CreateRouteDesc(aNewRoute))
+    
+//    if ws.RepliedInJson(w, r, CreateRouteDesc(aNewRoute)) { return }
+//
+//    rdTemplate := ws.RouteDescriptionTemplate()
+//    err := rdTemplate.Execute(w, aNewRoute)
+//    if err != nil {
+//      ws.Log.MayBeError("Could not execute base page template", err)
+//      w.Write([]byte("Could not provide any ConTeXt Nursery information\nPlease try again!"))
+//    }
   }
   return aNewRoute
 }
@@ -294,6 +279,7 @@ func (ws *WS) DescribeRoute(url, description string, visible bool) error {
   return err
 }
 
+/*
 // The default route description template as used by all described routes'
 // default GetHandler (unless explicitly over-ridden).
 //
@@ -321,6 +307,7 @@ func (ws *WS) RouteDescriptionTemplate() *template.Template {
 
   return theTemplate
 }
+*/
 
 // Add a http.Handler for http.MethodGet request at the url route.
 //
@@ -397,8 +384,24 @@ func (ws *WS) AddStaticFileHandlers(
   staticPath   string,
 ) error {
   ws.BaseRoute.GetHandler = func (w http.ResponseWriter, r *http.Request) {
+
+    //
+    // determine if we are replying in JSON
+    //
+    replyInJson := false
+    for _, anAcceptValue := range r.Header["Accept"] {
+      if strings.Contains(strings.ToLower(anAcceptValue), "json") {
+        ws.Log.Logf("Replying in JSON [%s]\n\n", strings.Join(r.Header["Accept"], "|"))
+        replyInJson = true
+        break
+      }
+    }
     
-    if ws.RepliedInJson(w, r, CreateRouteDesc(ws.BaseRoute)) { return }
+    if replyInJson {
+      ws.ReplyInJson(w, r, CreateRouteDesc(ws.BaseRoute))
+      return 
+    }
+    
     ws.Log.Logf("serving [%s] as \"/\"", baseHtmlPath)
     http.ServeFile(w, r, baseHtmlPath)
   }

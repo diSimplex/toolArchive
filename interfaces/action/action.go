@@ -22,7 +22,6 @@ import (
   "fmt"
   "github.com/diSimplex/ConTeXtNursery/clientConnection"
   "github.com/diSimplex/ConTeXtNursery/webserver"
-  "html/template"
   "io"
   "io/ioutil"
   "net/http"
@@ -89,37 +88,21 @@ type ActionImpl interface {
   //
   ResponseListActionsJSON() ActionList
 
-  // Returns the http.Template used to formate an HTML response listing the 
-  // currently registered actions together with a brief description of each 
-  // action. 
-  //
-  ResponseListActionsTemplate() *template.Template
-
   ActionRunAction(string, *ActionConfig) string
 
   ResponseDescribeActionJSON(string) ActionDescription
 
-  ResponseDescribeActionTemplate() *template.Template
-
   ResponseListActionsWithRunsJSON() map[string]string
-
-  ResponseListActionsWithRunsTemplate() *template.Template
 
   ResponseListRunsForActionJSON(string) map[string]string
 
-  ResponseRunsForActionTemplate() *template.Template
-
   ResponseListOutputsForActionRunJSON(string, string) map[string]string
-
-  ResponseOutputsForActionRunTemplate() *template.Template
 
   ResponseOutputFileForActionRunReader(
     string, string, string,
   ) (
     io.Reader, string, error,
   )
-
-  ResponseOutputFileTemplate() *template.Template
 
   ActionDeleteAll()
 
@@ -273,19 +256,13 @@ func AddActionInterface(
         // List currently registered actions
         //
         actions := interfaceImpl.ResponseListActionsJSON()
-        if ws.RepliedInJson(w, r, actions) { return }
-        actionsTemp := interfaceImpl.ResponseListActionsTemplate()
-        err := actionsTemp.Execute(w, actions)
-        ws.Log.MayBeError("Could not execute actionsTemplate", err)
+        ws.ReplyInJson(w, r, actions)
       } else {
         //
         // Describe anAction
         //
         actionDesc := interfaceImpl.ResponseDescribeActionJSON(pathParts[1])
-        if ws.RepliedInJson(w, r, actionDesc) { return }
-        actionDescTemp := interfaceImpl.ResponseDescribeActionTemplate()
-        err := actionDescTemp.Execute(w, actionDesc)
-        ws.Log.MayBeError("Could not execute action description Template", err)
+        ws.ReplyInJson(w, r, actionDesc)
       }
     },
   )
@@ -386,29 +363,20 @@ func AddActionInterface(
         // List actions with assocaited runs
         //
         actions := interfaceImpl.ResponseListActionsWithRunsJSON()
-        if ws.RepliedInJson(w, r, actions) { return }
-        actionsTemp := interfaceImpl.ResponseListActionsWithRunsTemplate()
-        err := actionsTemp.Execute(w, actions)
-        ws.Log.MayBeError("Could not execute actions with runs Template", err)
+        ws.ReplyInJson(w, r, actions)
       } else if len(pathParts) < 3 {
         //
         // List runs associated with <anAction>
         //
         runs := interfaceImpl.ResponseListRunsForActionJSON(theAction)
-        if ws.RepliedInJson(w, r, runs) { return }
-        runsTemp := interfaceImpl.ResponseRunsForActionTemplate()
-        err := runsTemp.Execute(w, runs)
-        ws.Log.MayBeError("Could not execute runs Template", err)
+        ws.ReplyInJson(w, r, runs)
       } else if len(pathParts) < 4 {
         //
         // List output files associated with <aRun> of <anAction>
         //
         outputFiles :=
           interfaceImpl.ResponseListOutputsForActionRunJSON(theAction, theRun)
-        if ws.RepliedInJson(w, r, outputFiles) { return }
-        outputFilesTemp := interfaceImpl.ResponseOutputsForActionRunTemplate()
-        err := outputFilesTemp.Execute(w, outputFiles)
-        ws.Log.MayBeError("Could not execute output files Template", err)
+        ws.ReplyInJson(w, r, outputFiles)
       } else {
         //
         // Browse <outputFile> assocaited with <aRun> of <anAction>
@@ -419,11 +387,8 @@ func AddActionInterface(
             theRun,
             outputFile,
           )
-        if ws.RepliedAsRawFile(w, r, ofReader, mimeType) { return }
-        ofLines := ws.ReadLines(ofReader)
-        outputFileTemp := interfaceImpl.ResponseOutputFileTemplate()
-        err = outputFileTemp.Execute(w, ofLines)
-        ws.Log.MayBeError("Could not execute output file Template", err)
+        ws.Log.MayBeError("Could not get output file for action", err)
+        ws.ReplyAsRawFile(w, r, ofReader, mimeType)
       }
     },
   )

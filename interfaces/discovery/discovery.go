@@ -19,10 +19,8 @@ package discovery
 
 import (
   "encoding/json"
-  //"fmt"
   "github.com/diSimplex/ConTeXtNursery/clientConnection"
   "github.com/diSimplex/ConTeXtNursery/webserver"
-  "html/template"
   "io/ioutil"
   "net/http"
 )
@@ -79,14 +77,6 @@ type DiscoveryImpl interface {
   // Nurseries.
   //
   ResponseListNurseryInformationJSON() NurseryInfoMap
-
-  // Return the http.Template used to format an HTML response listing
-  // the heartbeat status information about the federation of ConTeXt
-  // Nurseries.
-  //
-  // This template expects to be bound to an NurseryInfoMap 
-  //
-  ResponseListNurseryInformationTemplate() *template.Template
 
   // Update the heartbeat status information about the given Nursery in the
   // federation of Nurseries.
@@ -173,10 +163,7 @@ func AddDiscoveryInterface(
     "/heartbeat",
     func(w http.ResponseWriter, r *http.Request) {
       niMap := interfaceImpl.ResponseListNurseryInformationJSON()
-      if ws.RepliedInJson(w, r, niMap) { return }
-      niMapTemp := interfaceImpl.ResponseListNurseryInformationTemplate()
-      err := niMapTemp.Execute(w, niMap)
-      ws.Log.MayBeError("Could not execute niMapTemplate", err)
+      ws.ReplyInJson(w, r, niMap)
     },
   )
   ws.Log.MayBeError("Could not add GET handler for [/heartbeat]", err)
@@ -212,8 +199,7 @@ func AddDiscoveryInterface(
       interfaceImpl.ActionUpdateNurseryInfo(ni)
 
       niMap := interfaceImpl.ResponseListNurseryInformationJSON()
-      if ws.RepliedInJson(w, r, niMap) { return }
-      http.Redirect(w,r, "/hearBeat", http.StatusSeeOther)
+      ws.ReplyInJson(w, r, niMap)
     },
   )
   ws.Log.MayBeError("Could not add POST handler for [/heartbeat]", err)

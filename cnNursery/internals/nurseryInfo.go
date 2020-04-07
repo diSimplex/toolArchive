@@ -17,7 +17,6 @@ package CNNurseries
 import (
   "github.com/diSimplex/ConTeXtNursery/interfaces/discovery"
   "github.com/diSimplex/ConTeXtNursery/logger"
-  "html/template"
   "strings"
   "sync"
 )
@@ -147,63 +146,3 @@ func (cniMap *CNInfoMap) ResponseListNurseryInformationJSON() discovery.NurseryI
 
   return cniMap.NI
 }
-
-// Return the http.Template used to format an HTML response listing the 
-// heartbeat status information about the federation of ConTeXt Nurseries. 
-//
-// This template expects to be bound to an NurseryInfoMap.
-//
-// Part of the discovery.DiscoveryImpl interface.
-//
-func (cniMap *CNInfoMap) ResponseListNurseryInformationTemplate() *template.Template {
-  heartBeatTemplateStr := `
-  <head>
-    <title>Federation Heart Beat Information</title>
-    <meta http-equiv="refresh" content="5" />
-  </head>
-  <body>
-    <h1>Federation Heart Beat Information</h1>
-    <table>
-      <tr>
-        <th>Name</th>
-        <th>Port</th>
-        <th>State</th>
-        <th>Processes</th>
-        <th>Cores</th>
-        <th>Speed Mhz</th>
-        <th>Mem Total</th>
-        <th>Mem Used</th>
-        <th>Swap Total</th>
-        <th>Swap Used</th>
-        <th>Load 1 min</th>
-        <th>Load 5 min</th>
-        <th>Load 15 min</th>
-      </tr>
-{{ range $key, $value := . }}
-      <tr>
-        <td><a href="{{$value.Base_Url}}">{{$value.Name}}</a></td>
-        <td>{{$value.Port}}</td>
-        <td>{{$value.State}}</td>
-        <td>{{$value.Processes}}</td>
-        <td>{{$value.Cores}}</td>
-        <td>{{$value.Speed_Mhz}}</td>
-        <td>{{$value.Memory.Total}}</td>
-        <td>{{$value.Memory.Used}}</td>
-        <td>{{$value.Swap.Total}}</td>
-        <td>{{$value.Swap.Used}}</td>
-        <td>{{$value.Load.Load1}}</td>
-        <td>{{$value.Load.Load5}}</td>
-        <td>{{$value.Load.Load15}}</td>
-      </tr>
-{{ end }}
-    </table>
-  </body>
-`
-  theTemplate := template.New("body")
-
-  theTemplate, err := theTemplate.Parse(heartBeatTemplateStr)
-  cniMap.CNLog.MayBeFatal("Could not parse the internal heartBeat template", err)
-
-  return theTemplate
-}
-

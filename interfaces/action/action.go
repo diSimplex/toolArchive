@@ -33,7 +33,12 @@ import (
 // Action interface types
 //
 
-type Arguments []string
+type ArgValue struct {
+  Key   string
+  Value string
+}
+
+type Arguments []ArgValue
 
 type EnvValue struct {
   Key   string

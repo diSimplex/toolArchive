@@ -25,7 +25,6 @@ import (
   "io"
   "io/ioutil"
   "net/http"
-  "strings"
 )
 
 //////////////////////////////////////////////////////////////////////
@@ -112,6 +111,8 @@ type ActionImpl interface {
 
   ActionDeleteOutputFile(string, string, string)
 }
+
+
 
 // Send an action request using the client connection
 //
@@ -245,12 +246,7 @@ func AddActionInterface(
   err := ws.AddGetHandler(
     "/action",
     func(w http.ResponseWriter, r *http.Request) {
-      pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
-      ws.Log.Logf(
-        "/action pathParts [%s] len: %d",
-        strings.Join(pathParts, "|"),
-        len(pathParts),
-      )
+      pathParts := ws.GetPathParts(r.URL.Path)
       if len(pathParts) < 2 {
         //
         // List currently registered actions
@@ -282,7 +278,7 @@ func AddActionInterface(
   err = ws.AddPostHandler(
     "/action",
     func(w http.ResponseWriter, r *http.Request) {
-      pathParts := strings.Split(r.URL.Path, "/")
+      pathParts := ws.GetPathParts(r.URL.Path)
       if len(pathParts) < 2 {
         ws.Log.MayBeError("No action specified in /action post request", err)
         http.Error(w, "No action specified", http.StatusBadRequest)
@@ -350,7 +346,7 @@ func AddActionInterface(
   err = ws.AddGetHandler(
     "/action/output",
     func(w http.ResponseWriter, r *http.Request) {
-      pathParts  := strings.Split(r.URL.Path, "/")
+      pathParts  := ws.GetPathParts(r.URL.Path)
       theAction  := ""
       theRun     := ""
       outputFile := ""
@@ -422,7 +418,7 @@ func AddActionInterface(
   err = ws.AddDeleteHandler(
     "/action/output",
     func(w http.ResponseWriter, r *http.Request) {
-      pathParts  := strings.Split(r.URL.Path, "/")
+      pathParts  := ws.GetPathParts(r.URL.Path)
       theAction  := ""
       theRun     := ""
       outputFile := ""

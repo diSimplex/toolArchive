@@ -66,6 +66,11 @@ func (l *LoggerType) Logf(logFormat string, v ...interface{}) {
   log.Printf(l.AppName+"(info): "+logFormat, v...)
 }
 
+// Log the logMesg together with the aValue structure as a JSON object.
+//
+// If the aValue object could not be marshaled as JSON, then report the 
+// valName and the reason it could not be marshaled. 
+//
 func (l *LoggerType) Json(logMesg string, valName string, aValue interface{}) {
   jsonBytes, err := json.MarshalIndent(aValue, "", "  ")
   if err != nil {

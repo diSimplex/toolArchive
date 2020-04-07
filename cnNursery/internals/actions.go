@@ -22,6 +22,7 @@ import (
   "github.com/diSimplex/ConTeXtNursery/webserver"
   "github.com/jinzhu/configor"
   "io"
+  "os/exec"
   "path/filepath"
   "sync"
 )
@@ -115,8 +116,27 @@ func (aState *ActionsState) ResponseListActionsJSON() action.ActionList {
 //
 // Part of the action.ActionImpl interface.
 //
-func (aState *ActionsState) ActionRunAction(string, *action.ActionConfig) string {
-  return ""
+func (aState *ActionsState) ActionRunAction(
+  actionName    string,
+  actionConfig *action.ActionConfig,
+) string {
+
+  aState.CNLog.Logf("Hello from ActionRunAction [%s]", actionName)
+  aState.CNLog.Json("actionConfig: ", "actionConfig", actionConfig)
+
+  cmd := exec.Command(aState.ActionsDir+"/"+actionName)
+  for _, anArg := range actionConfig.Args {
+    cmd.Args = append(cmd.Args, anArg.Key+"="+anArg.Value)
+  }
+
+  for _, anEnv := range actionConfig.Envs {
+    cmd.Env = append(cmd.Env, anEnv.Key+"="+anEnv.Value)
+  }
+  
+  aState.CNLog.Json("cmd.Path", "cmd.Path", cmd.Path)
+  aState.CNLog.Json("cmd.Args", "cmd.Args", cmd.Args)
+  aState.CNLog.Json("cmd.Env",  "cmd.Env",  cmd.Env)
+  return "1234"
 }
 
 // TODO

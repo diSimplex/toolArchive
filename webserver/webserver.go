@@ -145,6 +145,21 @@ func (ws *WS) ReadLines(file io.Reader) []string {
   return []string{}
 }
 
+// Helper method to parse the path parts in a multi-part url.
+//
+// CALLS ws.Log;
+// THREAD-SAFE;
+//
+func (ws *WS) GetPathParts(aPath string) []string {
+  pathParts := strings.Split(strings.TrimPrefix(aPath, "/"), "/")
+  ws.Log.Logf(
+    "pathParts [%s] len: %d",
+    strings.Join(pathParts, "|"),
+    len(pathParts),
+  )
+  return pathParts
+}
+
 // The data required to describe how much of a partial route has been found
 // by the FindRoute function.
 //

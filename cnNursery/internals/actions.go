@@ -22,10 +22,21 @@ import (
   "github.com/diSimplex/ConTeXtNursery/webserver"
   "github.com/jinzhu/configor"
   "io"
+  "os"
   "os/exec"
   "path/filepath"
   "sync"
 )
+
+type ActionOutputHandler struct {
+  Mutex sync.RWMutex
+  Output bytes.Buffer
+}
+
+type ActionRunner struct {
+  Mutext sync.RWMutex
+  
+}
 
 // ActionsState contains the (essentially global) state required to 
 // implement the Actions RESTful interface.
@@ -112,30 +123,49 @@ func (aState *ActionsState) ResponseListActionsJSON() action.ActionList {
   return aState.Actions
 }
 
-// TODO
+// TODO Part of the action.ActionImpl interface.
 //
-// Part of the action.ActionImpl interface.
+// This code is based upon Krzysztof Kowalczyk's 
+// (https://blog.kowalczyk.info/) excellent blog post "Advanced command 
+// execution in Go with os/exec" 
+// (https://blog.kowalczyk.info/article/wOYk/advanced-command-execution-in-go-with-osexec.html) 
+//
+// Consider using server side events to send stdout/stderr to the client 
+// browser(s). See: https://github.com/kljensen/golang-html5-sse-example 
+// or https://github.com/r3labs/sse 
+//
+// Could use golang websockets. See: 
+// https://github.com/gorilla/websocket/tree/master/examples/command 
 //
 func (aState *ActionsState) ActionRunAction(
-  actionName    string,
+  actionName string, 
   actionConfig *action.ActionConfig,
-) string {
+) string { 
 
-  aState.CNLog.Logf("Hello from ActionRunAction [%s]", actionName)
+aState.CNLog.Logf("Hello from ActionRunAction [%s]", actionName)
   aState.CNLog.Json("actionConfig: ", "actionConfig", actionConfig)
 
   cmd := exec.Command(aState.ActionsDir+"/"+actionName)
   for _, anArg := range actionConfig.Args {
-    cmd.Args = append(cmd.Args, anArg.Key+"="+anArg.Value)
+    cmd.Args = append(cmd.Args, anArg.Key)
+    cmd.Args = append(cmd.Args, anArg.Value)
   }
 
   for _, anEnv := range actionConfig.Envs {
-    cmd.Env = append(cmd.Env, anEnv.Key+"="+anEnv.Value)
+    cmd.Env = append(cmd.Env, anEnv.Key)
+    cmd.Env = append(cmd.Env, anEnv.Value)
   }
   
   aState.CNLog.Json("cmd.Path", "cmd.Path", cmd.Path)
   aState.CNLog.Json("cmd.Args", "cmd.Args", cmd.Args)
   aState.CNLog.Json("cmd.Env",  "cmd.Env",  cmd.Env)
+  
+  cmd.Stdout = os.Stdout
+  cmd.Stderr = os.Stderr
+  
+  err := cmd.Run()
+  aState.CNLog.MayBeError("completed run actionRunAction", err)
+  
   return "1234"
 }
 

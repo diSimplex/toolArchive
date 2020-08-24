@@ -1,0 +1,71 @@
+#!/bin/bash
+
+# This bash script runs the collection of document servers needed to 
+# provide web-browser access to all of the separate parts of the ConTeXt 
+# Nursery project. 
+
+source /common/ipAddress
+
+reset
+
+echo "-----------------------------------------------------------------"
+echo ""
+echo "http://$ipAddress:6060/index.html"
+echo ""
+echo "use ./tools/killDocServers to kill all document servers"
+echo ""
+echo "-----------------------------------------------------------------"
+echo ""
+
+
+docTool docs tmp/html/ConTeXtNursery/html
+
+echo "" 
+
+pushd tmp/html/ConTeXtNursery/html
+webfsd -p 6060 -F &
+popd
+
+echo ""
+
+mkdir -p tmp/html/cJoyLoL/html
+pushd cJoyLoL
+frama-c-doxygen
+popd
+pushd tmp/html/cJoyLoL/html
+webfsd -p 6061 -F &
+popd
+
+echo ""
+
+mkdir -p tmp/html/goIPyJoyLoLAdaptor/html
+pushd goIPyJoyLoL/goIPyJoyLoLAdaptor
+frama-c-doxygen
+popd
+pushd tmp/html/goIPyJoyLoLAdaptor/html
+webfsd -p 6062 -F &
+popd
+
+echo ""
+
+pushd cJoyLoL
+godoc --http=0.0.0.0:6071 &
+popd
+
+echo ""
+
+pushd goIPyJoyLoL
+godoc --http=0.0.0.0:6072 &
+popd
+
+echo ""
+
+echo ""
+echo "-----------------------------------------------------------------"
+echo ""
+echo "http://$ipAddress:6060/index.html"
+echo ""
+echo "use ./bin/killDocServers to kill all document servers"
+echo ""
+echo "-----------------------------------------------------------------"
+echo ""

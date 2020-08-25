@@ -17,45 +17,19 @@ echo ""
 echo "-----------------------------------------------------------------"
 echo ""
 
-
-docTool docs tmp/html/ConTeXtNursery/html
+rm -rf tmp/html
+docTool docs tmp/html
 
 echo "" 
 
-pushd tmp/html/ConTeXtNursery/html
+pushd tmp/html
 webfsd -p 6060 -F &
 popd
 
 echo ""
 
-mkdir -p tmp/html/cJoyLoL/html
-pushd cJoyLoL
-frama-c-doxygen
-popd
-pushd tmp/html/cJoyLoL/html
-webfsd -p 6061 -F &
-popd
-
-echo ""
-
-mkdir -p tmp/html/goIPyJoyLoLAdaptor/html
-pushd goIPyJoyLoL/goIPyJoyLoLAdaptor
-frama-c-doxygen
-popd
-pushd tmp/html/goIPyJoyLoLAdaptor/html
-webfsd -p 6062 -F &
-popd
-
-echo ""
-
-pushd cJoyLoL
-godoc --http=0.0.0.0:6071 &
-popd
-
-echo ""
-
-pushd goIPyJoyLoL
-godoc --http=0.0.0.0:6072 &
+pushd ConTeXtNursery
+godoc --http=0.0.0.0:6061 &
 popd
 
 echo ""

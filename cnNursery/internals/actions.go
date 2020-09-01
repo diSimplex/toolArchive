@@ -15,6 +15,7 @@
 package CNNurseries
 
 import (
+  "bytes"
   "github.com/diSimplex/ConTeXtNursery/clientConnection"
   "github.com/diSimplex/ConTeXtNursery/interfaces/action"
   "github.com/diSimplex/ConTeXtNursery/interfaces/control"

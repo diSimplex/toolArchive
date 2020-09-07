@@ -27,8 +27,8 @@ RUN adduser -S -D -H -h /cnNusery cnnu
 
 USER cnnu
 
-COPY --from=builder /build/cnNursery/cnNursery /cnNursery/
+COPY --from=builder /build/cnNursery/cnNursery /bin/
 
 WORKDIR /cnNursery
 
-CMD ["./cnNursery"]
+CMD ["/bin/cnNursery"]

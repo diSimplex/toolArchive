@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# This bash script creates a podman pod to run a ConTeXtNursery
+# It is intended as a working *example*... 
+#   ... you can and should alter this script to suit your needs!
+#
+
+set -e
+
+echo ""
+echo "Creating pod: cnPod"
+podman pod create \
+  --name cnPod \
+  --publish 0.0.0.0:8989:8989
+
+echo ""
+echo "Creating container: cnNursery"
+podman container create \
+  --name cnNursery \
+  --restart always \
+  -v $(pwd):/cnNursery \
+  -v /etc/timezone:/etc/timezone:ro \
+  -v /etc/localtime:/etc/localtime:ro \
+  --pod cnPod \
+  localregistry:5000/cnnursery_$(uname -m)

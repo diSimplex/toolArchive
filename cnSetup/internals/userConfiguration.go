@@ -41,6 +41,7 @@ type UserType struct {
   Cert_Path     string
   Key_Path      string
   Pkcs12_Path   string
+  Primary_Host  string
   Primary_Url   string
   Config_Path   string
   Serial_Number uint
@@ -56,6 +57,7 @@ var (
     "", // Cert_Path
     "", // Key_Path
     "", // Pkcs12_Path
+    "", // Primary_Host
     "", // Primary_Url
     "", // Config_Path
     0,  // Serial_Number

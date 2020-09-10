@@ -48,6 +48,7 @@ type ConfigType struct {
   Nursery_Defaults      NurseryType
   Nurseries           []NurseryType
   Primary_Nursery      *NurseryType
+  Primary_Nursery_Host  string
   Primary_Nursery_Url   string
 
   // Users
@@ -105,12 +106,16 @@ func (config *ConfigType) LoadConfiguration(
     config.Nurseries[i].NormalizeConfig(i, &config.Nursery_Defaults, config)
   }
 
-  config.Primary_Nursery_Url = config.Primary_Nursery.ComputeUrl()
+  config.Primary_Nursery_Host = config.Primary_Nursery.Hosts[0]
+  config.Primary_Nursery_Url  = config.Primary_Nursery.ComputeUrl()
 
   // now explicitly set the primary url for each Nursery.
   //
   for i, _ := range config.Nurseries {
-    config.Nurseries[i].SetPrimaryUrl(config.Primary_Nursery_Url)
+    config.Nurseries[i].SetPrimary(
+      config.Primary_Nursery_Host,
+      config.Primary_Nursery_Url,
+    )
   }
 
   config.User_Defaults.NormalizeConfig(

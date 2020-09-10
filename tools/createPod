@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# This bash script creates the ConTeXTNursery pod using podman
+
+if test $# -ne 1 ; then
+  echo ""
+  echo "usage createPod <podConfigurationDir>"
+  echo ""
+  exit -1
+fi
+
+set -e
+
+source /etc/os-release
+
+export registryHost=oci-registry
+
+export registryPort=5000
+
+export imagePrefix=${registryHost}:${registryPort}
+
+export imageArch=$(uname -m)
+
+export configDir=$(readlink -f $1)
+
+echo ""
+echo "Registry      host: $registryHost"
+echo "Registry      port: $registryPort"
+echo "Image       prefix: $imagePrefix"
+echo "Image architecture: $imageArch"
+echo "Configuration  dir: $configDir"
+
+echo ""
+if command -v nc &> /dev/null
+then
+  if nc -zw3 $registryHost $registryPort ; then
+    echo "Found registry $registryHost on port $registryPort"
+  else
+    echo "Could NOT find registry $registryHost on port $registryPort"
+    echo "Is the registry running?"
+    exit -1
+  fi
+else
+  echo "Could not find the netcat (nc) tool..."
+  echo "...so could not determine if the registry $registryHost is running!"
+fi
+
+echo ""
+echo "Creating       pod: [cnNursery]"
+podman pod create \
+  --name cnNursery \
+  --publish 0.0.0.0:4222:4222 \
+  --publish 0.0.0.0:6222:6222 \
+
+echo ""
+echo "Creating container: [cnMessages]"
+
+podman pull --tls-verify=false $imagePrefix/cnmessages_$imageArch
+
+podman container create \
+  --name cnMessages \
+  --restart always \
+  -v $1:/cnNursery/conf \
+  -v /etc/timezone:/etc/timezone:ro \
+  -v /etc/localtime:/etc/localtime:ro \
+  --pod cnNursery \
+  $imagePrefix/cnmessages_$imageArch \
+
+echo ""
+echo "Are the ports 4222 and 6222 allowed through your firewall?"
+echo ""
+echo "This cnNursery pod uses these ports to communicate"
+echo "with any other cnNursery pods in your network." 
+echo ""

@@ -76,6 +76,14 @@ func WorkOnNursery(
       aNursery.Name, 
     )
   }
+  if err == nil {
+    err = aNursery.WriteNATSConfiguration()
+    config.CSLog.MayBeErrorf(
+      err,
+      "Could not write cnMessages(NATS) nursery [%s] configuration file", 
+      aNursery.Name, 
+    )
+  }
   config.CSLog.DebugLockf("(%d)finished on nursery: [%s]\n", i, aNursery.Name)
 }
 

@@ -12,7 +12,7 @@ fi
 
 source /etc/os-release
 
-export tagPrefix=localregistry:5000
+export tagPrefix=oci-registry:5000
 
 export tag=$tagPrefix/$(echo $1 | tr '[:upper:]' '[:lower:]')_$(uname -m)
 

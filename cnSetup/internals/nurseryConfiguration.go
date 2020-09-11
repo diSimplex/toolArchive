@@ -36,48 +36,60 @@ import (
 // altered by structure methods. 
 //
 type NurseryType struct {
-  Federation_Name string
-  Name            string
-  Host            string
-  Hosts           []string
-  Interface       string
-  Port            uint
-  Html_Dir        string
-  Cert_Dir        string
-  Ca_Cert_Path    string
-  Cert_Path       string
-  Key_Path        string
-  Is_Primary      bool
-  Base_Url        string
-  Primary_Host    string
-  Primary_Url     string
-  Config_Path     string
-  NATS_Path       string
-  Work_Dir        string
-  Actions_Dir     string
-  Serial_Number   uint
-  Key_Size        uint
+  Federation_Name       string
+  Federation_Port       uint
+  Name                  string
+  Host                  string
+  Hosts               []string
+  Interface             string
+  Messages_Port         uint
+  Monitor_Port          uint
+  Librarian_Port        uint
+  Html_Dir              string
+  Cert_Dir              string
+  Ca_Cert_Path          string
+  Cert_Path             string
+  Key_Path              string
+  Is_Primary            bool
+  Librarian_Url         string
+  NATS_Url              string
+  Primary_Host          string
+  Primary_NATS_Url      string
+  Primary_Librarian_Url string
+  Config_Path           string
+  NATS_Path             string
+  ENVS_Path             string
+  Work_Dir              string
+  Actions_Dir           string
+  Serial_Number         uint
+  Key_Size              uint
 }
 
 var (
   NurseryDefaults = NurseryType{
-    "",                       // Name
+    "",                       // Federation_Name
+    4221,                     // Federation_Port
     "",                       // Name
     "",                       // Host
     []string{},               // Hosts
     "0.0.0.0",                // Interface
-    8989,                     // Port
+    4222,                     // Messages_Port
+    4223,                     // Monitor_Port
+    4220,                     // Librarian_Port
     "/var/www/html",          // Html_Dir
     "",                       // Cert_Dir
     "",                       // Ca_Cert_Path
     "",                       // Cert_Path
     "",                       // Key_Path
     false,                    // Is_Primary
-    "https://localhost:8989", // Base_Url
-    "",                       // Primary_Url
+    "https://localhost:4220", // Librarian_Url
+    "nats://localhost:4221",  // NATS_Url
+    "",                       // Primary_NATS
+    "",                       // Primary_Librarian
     "",                       // Primary_Url
     "",                       // Config_Path
     "",                       // NATS_Path
+    "",                       // ENVS_Path
     "workDir",                // Word_Dir
     "actionsDir",             // Actions_Dir
     0,                        // Serial_Number
@@ -85,12 +97,20 @@ var (
   }
 )
 
-// Compute the (control) URL associated with a given Nursery.
+// Compute the NATS (control) URL associated with a given Nursery.
 //
 // READS nursery;
 //
-func (nursery *NurseryType) ComputeUrl() string {
-  return "https://"+nursery.Hosts[0]+":"+strconv.Itoa(int(nursery.Port))
+func (nursery *NurseryType) ComputeNATS() string {
+  return "nats://"+nursery.Hosts[0]+":"+strconv.Itoa(int(nursery.Federation_Port))
+}
+
+// Compute the Librarian URL associated with a given Nursery.
+//
+// READS nursery;
+//
+func (nursery *NurseryType) ComputeLibrarian() string {
+  return "https://"+nursery.Hosts[0]+":"+strconv.Itoa(int(nursery.Librarian_Port))
 }
 
 // Normalize the fields of a given NurseryType (using the defaults 
@@ -108,8 +128,11 @@ func (nursery *NurseryType) NormalizeConfig(
   config    *ConfigType,
 ) {
   if nursery.Federation_Name == "" { nursery.Federation_Name = config.Federation_Name }
+  if nursery.Federation_Port == 0  { nursery.Federation_Port = defaults.Federation_Port }
   if nursery.Interface       == "" { nursery.Interface       = defaults.Interface }
-  if nursery.Port            == 0  { nursery.Port            = defaults.Port }
+  if nursery.Messages_Port   == 0  { nursery.Messages_Port   = defaults.Messages_Port }
+  if nursery.Monitor_Port    == 0  { nursery.Monitor_Port    = defaults.Monitor_Port }
+  if nursery.Librarian_Port  == 0  { nursery.Librarian_Port  = defaults.Librarian_Port }
   if nursery.Html_Dir        == "" { nursery.Html_Dir        = defaults.Html_Dir }
   if nursery.Cert_Dir        == "" { nursery.Cert_Dir        = defaults.Cert_Dir }
   if nursery.Ca_Cert_Path    == "" { nursery.Ca_Cert_Path    = defaults.Ca_Cert_Path }
@@ -130,12 +153,14 @@ func (nursery *NurseryType) NormalizeConfig(
       nursery.Cert_Dir = "servers/"+nursery.Name
     }
     nPathPrefix := nursery.Cert_Dir + "/" + nursery.Name
-    if nursery.Ca_Cert_Path == "" { nursery.Ca_Cert_Path = nPathPrefix+"-ca-crt.pem" }
-    if nursery.Cert_Path    == "" { nursery.Cert_Path    = nPathPrefix+"-crt.pem" }
-    if nursery.Key_Path     == "" { nursery.Key_Path     = nPathPrefix+"-key.pem" }
-    if nursery.Config_Path  == "" { nursery.Config_Path  = nPathPrefix+"-config.yaml" }
-    if nursery.NATS_Path    == "" { nursery.NATS_Path    = nursery.Cert_Dir+"/nats-server.conf" }
-    if nursery.Base_Url     == "" { nursery.Base_Url     = nursery.ComputeUrl() }
+    if nursery.Ca_Cert_Path  == "" { nursery.Ca_Cert_Path  = nPathPrefix+"-ca-crt.pem" }
+    if nursery.Cert_Path     == "" { nursery.Cert_Path     = nPathPrefix+"-crt.pem" }
+    if nursery.Key_Path      == "" { nursery.Key_Path      = nPathPrefix+"-key.pem" }
+    if nursery.Config_Path   == "" { nursery.Config_Path   = nPathPrefix+"-config.yaml" }
+    if nursery.NATS_Path     == "" { nursery.NATS_Path     = nursery.Cert_Dir+"/nats-server.conf" }
+    if nursery.ENVS_Path     == "" { nursery.ENVS_Path     = nursery.Cert_Dir+"/pod-envs.sh" }
+    if nursery.NATS_Url      == "" { nursery.NATS_Url      = nursery.ComputeNATS() }
+    if nursery.Librarian_Url == "" { nursery.Librarian_Url = nursery.ComputeLibrarian() }
   }
   
   // we need to use DIFFERENT serial numbers for each of CA (1<<32),
@@ -156,9 +181,14 @@ func (nursery *NurseryType) NormalizeConfig(
 // NOT THREAD-SAFE;
 // CALLED BY: LoadConfiguration ONLY;
 //
-func (nursery *NurseryType) SetPrimary(primaryHost string, primaryUrl string) {
-  nursery.Primary_Host = primaryHost
-  nursery.Primary_Url  = primaryUrl
+func (nursery *NurseryType) SetPrimary(
+  primaryHost      string,
+  primaryNATS      string,
+  primaryLibrarian string,
+) {
+  nursery.Primary_Host          = primaryHost
+  nursery.Primary_NATS_Url      = primaryNATS
+  nursery.Primary_Librarian_Url = primaryLibrarian
 }
 
 // Write out the YAML configuration file requred to run a given cnNursery 
@@ -177,19 +207,22 @@ func (nursery *NurseryType) WriteConfiguration() error {
 #
 # DO NOT EDIT THIS FILE (any changes will be lost)
 
-federation_name: "{{.Federation_Name}}"
-name:            "{{.Name}}"
-host:            "{{.Host}}"
-interface:       "{{.Interface}}"
-port:             {{.Port}}
-html_dir:        "{{.Html_Dir}}"
-base_url:        "{{.Base_Url}}"
-primary_url:     "{{.Primary_Url}}"
-ca_cert_path:    "{{.Ca_Cert_Path}}"
-cert_path:       "{{.Cert_Path}}"
-key_path:        "{{.Key_Path}}"
-work_dir:        "{{.Work_Dir}}"
-actions_dir:     "{{.Actions_Dir}}"
+federation_name:        "{{.Federation_Name}}"
+name:                   "{{.Name}}"
+host:                   "{{.Host}}"
+interface:              "{{.Interface}}"
+federation_port:         {{.Federation_Port}}
+messages_port:           {{.Messages_Port}}
+monitor_port:            {{.Monitor_Port}}
+librarian_port:          {{.Librarian_Port}}
+html_dir:               "{{.Html_Dir}}"
+primary_federation_url: "{{.Primary_NATS_Url}}"
+primary_librarian_url:  "{{.Primary_Librarian_Url}}"
+ca_cert_path:           "{{.Ca_Cert_Path}}"
+cert_path:              "{{.Cert_Path}}"
+key_path:               "{{.Key_Path}}"
+work_dir:               "{{.Work_Dir}}"
+actions_dir:            "{{.Actions_Dir}}"
 `
 
   yamlTemplate, err := template.New("yamlTemplate").Parse(yamlTemplateStr)
@@ -233,11 +266,12 @@ func (nursery *NurseryType) WriteNATSConfiguration() error {
 # DO NOT EDIT THIS FILE (any changes will be lost)
 
 server_name: "{{.Name}}"
-port: 4222
+port: {{.Messages_Port}}
+http_port: {{.Monitor_Port}}
 cluster: {
   name: "{{.Federation_Name}}"
-  port: 6222
-  routes: [ "nats://{{.Primary_Host}}:6222" ]
+  port: {{.Federation_Port}}
+  routes: [ "{{.Primary_NATS_Url}}" ]
 }
 `
 
@@ -260,6 +294,54 @@ cluster: {
   err = yamlFile.Close()
   if err != nil {
     return fmt.Errorf("Could not close the nursery config file: %w", err)
+  }
+  
+  return nil
+}
+
+// Write out the YAML configuration file requred to run a given 
+// cnMessages(NATS) microService. 
+//
+// READS nursery;
+//
+func (nursery *NurseryType) WriteENVSConfiguration() error {
+
+  fmt.Printf("\n\nCreating pod environment variables for the [%s] Nursery\n", nursery.Name)
+
+  yamlTemplateStr := `
+# These are the pod environment variables for the {{.Name}} Nursery
+#
+# This file has been automatically generated by the cnSetup tool
+#
+# DO NOT EDIT THIS FILE (any changes will be lost)
+
+export SERVER_NAME="{{.Name}}"
+export FEDERATION_NAME="{{.Federation_Name}}"
+export FEDERATION_PORT={{.Federation_Port}}
+export MESSAGES_PORT={{.Messages_Port}}
+export MONITOR_PORT={{.Monitor_Port}}
+export LIBRARIAN_PORT={{.Librarian_Port}}
+`
+
+  yamlTemplate, err := template.New("yamlTemplate").Parse(yamlTemplateStr)
+  if err != nil {
+    return fmt.Errorf("Could not parse the yaml template: %w", err)
+  }
+
+  yamlFile, err := os.Create(nursery.ENVS_Path)
+  if err != nil {
+    return fmt.Errorf("Could not open the pod environment variables file for writing: %w", err)
+  }
+
+  err = yamlTemplate.Execute(yamlFile, nursery)
+  if err != nil {
+    yamlFile.Close()
+    return fmt.Errorf("Could not run pod environment variables template: %w", err)
+  }
+  
+  err = yamlFile.Close()
+  if err != nil {
+    return fmt.Errorf("Could not close the pod environment variables file: %w", err)
   }
   
   return nil

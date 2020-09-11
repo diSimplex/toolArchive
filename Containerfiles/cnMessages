@@ -34,9 +34,6 @@ COPY --from=builder /build/nats-server/nats-server /bin/
 
 WORKDIR /cnMessages
 
-# expose the client and cluster ports
-EXPOSE 4222 6222
-
 ENTRYPOINT ["/bin/nats-server"]
 
 CMD ["-c", "/cnNursery/conf/nats-server.conf"]

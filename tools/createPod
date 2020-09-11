@@ -45,12 +45,16 @@ else
   echo "...so could not determine if the registry $registryHost is running!"
 fi
 
+source $configDir/pod-envs.sh
+
 echo ""
 echo "Creating       pod: [cnNursery]"
 podman pod create \
   --name cnNursery \
-  --publish 0.0.0.0:4222:4222 \
-  --publish 0.0.0.0:6222:6222 \
+  --publish 0.0.0.0:$LIBRARIAN_PORT:$LIBRARIAN_PORT \
+  --publish 0.0.0.0:$FEDERATION_PORT:$FEDERATION_PORT \
+  --publish 0.0.0.0:$MESSAGES_PORT:$MESSAGES_PORT \
+  --publish 0.0.0.0:$MONITOR_PORT:$MONITOR_PORT \
 
 echo ""
 echo "Creating container: [cnMessages]"
@@ -60,14 +64,19 @@ podman pull --tls-verify=false $imagePrefix/cnmessages_$imageArch
 podman container create \
   --name cnMessages \
   --restart always \
-  -v $1:/cnNursery/conf \
+  -v $configDir:/cnNursery/conf \
   -v /etc/timezone:/etc/timezone:ro \
   -v /etc/localtime:/etc/localtime:ro \
   --pod cnNursery \
   $imagePrefix/cnmessages_$imageArch \
 
 echo ""
-echo "Are the ports 4222 and 6222 allowed through your firewall?"
+echo "Are the ports:"
+echo "  $LIBRARIAN_PORT (librarian)"
+echo "  $FEDERATION_PORT (federation)"
+echo "  $MESSAGES_PORT (messages)"
+echo "  $MONITOR_PORT (monitor)"
+echo "allowed through your firewall?"
 echo ""
 echo "This cnNursery pod uses these ports to communicate"
 echo "with any other cnNursery pods in your network." 

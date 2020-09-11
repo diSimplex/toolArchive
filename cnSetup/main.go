@@ -19,6 +19,8 @@ package main
 
 import (
   "bufio"
+  crand "crypto/rand"
+  "encoding/binary"
   "flag"
   "fmt"
   "github.com/diSimplex/ConTeXtNursery/cnSetup/internals"
@@ -28,7 +30,6 @@ import (
   "runtime"
   "strings"
   "sync"
-  "time"
 )
 
 // A User.Name->User.Password mapping used to write out the 
@@ -148,20 +149,30 @@ func main() {
   // Setup logging and load the configuration.
   //
   csLog  := logger.CreateLogger("cnSetup")
+
+  // seed the math/rand random number generator with a "random" seed
+  // see: https://stackoverflow.com/a/54491783
+  // (random is used when loading the configuration to ensure the NATS 
+  // routes are randomized) 
+  //
+  var randomSeed [8]byte
+  _, err := crand.Read(randomSeed[:])
+  csLog.MayBeFatal("Could not read a random seed from the system random stream", err)
+  rand.Seed(int64(binary.LittleEndian.Uint64(randomSeed[:])))
   config := CNSetup.CreateConfiguration(csLog)
   config.LoadConfiguration(configFileName, showConfig)
   
+  // load the configuration.
+  //
   fmt.Printf("numCPU: %d\n", runtime.NumCPU())
   fmt.Printf("GOMAXPROCS: %d\n", runtime.GOMAXPROCS(-1))
   
-  // seed the math/rand random number generator with a "random" seed
-  rand.Seed(time.Now().Unix())
   
   // Load or (re)Create the CA...
   // (this MUST be done synchronously)
   //
   ca  := CNSetup.CreateCA(config)
-  err := ca.LoadCAFromFiles()
+  err  = ca.LoadCAFromFiles()
   if err != nil {
     if createCA {
       err = ca.CreateNewCA()

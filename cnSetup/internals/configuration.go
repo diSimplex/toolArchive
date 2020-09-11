@@ -45,12 +45,9 @@ type ConfigType struct {
 
   // Nurseries
   //
-  Nursery_Defaults          NurseryType
-  Nurseries               []NurseryType
-  Primary_Nursery          *NurseryType
-  Primary_Nursery_Host      string
-  Primary_Nursery_NATS      string
-  Primary_Nursery_Librarian string
+  Nursery_Defaults  NurseryType
+  Nurseries       []NurseryType
+  NATS_Routes     []string
 
   // Users
   //
@@ -94,31 +91,26 @@ func (config *ConfigType) LoadConfiguration(
     os.Exit(-1)
   }
 
-  // locate the primary Nursery and normalize each Nursery structure 
-  //
-  config.Primary_Nursery = &config.Nurseries[0]
-  config.Nursery_Defaults.NormalizeConfig(0, &NurseryDefaults, config)
-  for i, _ := range config.Nurseries {
-    if config.Nurseries[i].Is_Primary {
-      if ! config.Primary_Nursery.Is_Primary {
-         config.Primary_Nursery = &config.Nurseries[i]
-      }
-    }
-    config.Nurseries[i].NormalizeConfig(i, &config.Nursery_Defaults, config)
+  if len(config.Nurseries) < 1 {
+    config.CSLog.Logf("You MUST specify at least ONE Nursery")
+    os.Exit(-1)
   }
 
-  config.Primary_Nursery_Host      = config.Primary_Nursery.Hosts[0]
-  config.Primary_Nursery_NATS      = config.Primary_Nursery.ComputeNATS()
-  config.Primary_Nursery_Librarian = config.Primary_Nursery.ComputeLibrarian()
+  // locate the primary Nursery and normalize each Nursery structure 
+  //
+  config.Nursery_Defaults.NormalizeConfig(0, &NurseryDefaults, config)
+  config.NATS_Routes = make([]string, len(config.Nurseries))
+  natsShuffle := make([]int, len(config.Nurseries))
+  for i, _ := range config.Nurseries {
+    natsShuffle[i] = i
+    config.Nurseries[i].NormalizeConfig(i, &config.Nursery_Defaults, config)
+    config.NATS_Routes[i] = config.Nurseries[i].ComputeNATS()
+  }
 
   // now explicitly set the primary url for each Nursery.
   //
   for i, _ := range config.Nurseries {
-    config.Nurseries[i].SetPrimary(
-      config.Primary_Nursery_Host,
-      config.Primary_Nursery_NATS,
-      config.Primary_Nursery_Librarian,
-    )
+    config.Nurseries[i].SetNatsRoutes( &config.NATS_Routes, &natsShuffle )
   }
 
   config.User_Defaults.NormalizeConfig(

@@ -28,9 +28,7 @@ popd
 
 echo ""
 
-pushd ConTeXtNursery
 godoc --http=0.0.0.0:6061 &
-popd
 
 echo ""
 

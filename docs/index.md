@@ -16,4 +16,7 @@ DIRECTORY_INDEX
 
 # Interfaces
 
-- [Interfaces](interfaces/Readme.md)
+- [Interfaces (readme)](interfaces/Readme.md)
+
+- [Interfaces (index)](interfaces/index.md)
+

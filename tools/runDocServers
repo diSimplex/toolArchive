@@ -28,7 +28,7 @@ popd
 
 echo ""
 
-godoc --http=0.0.0.0:6061 &
+godoc --http=0.0.0.0:6061 --goroot=. &
 
 echo ""
 

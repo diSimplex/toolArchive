@@ -1,10 +1,10 @@
 {
-  "name": "cnNursery",
+  "name": "cnClient",
   "version": "1.0.0",
   "description": "A [Mithril](https://mithril.js.org/) based web client for the ConTeXt Nurseries RESTful HTTP interfaces.",
   "main": "index.js",
   "scripts": {
-    "start": "webpack index.js --output static/app.js -d"
+    "start": "webpack src/index.js --output static/app.js -d --watch"
   },
   "keywords": [],
   "author": "",

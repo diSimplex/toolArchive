@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate ./buildBrowserApp
+
+// see: https://github.com/mjibson/esc
+//go:generate esc -o browserApp.go -pkg main browserApp/static
+
 package main
 
 import (

@@ -1,0 +1,22 @@
+.radio-list {list-style:none;margin:0 0 10px;padding:0;}
+.radio-list-item {background:#fafafa;border:1px solid #ddd;color:#333;display:block;margin:0 0 1px;padding:8px 15px;text-decoration:none;}
+.radio-list-item:hover {text-decoration:underline;}
+.audio-list {list-style:none;margin:0 0 10px;padding:0;}
+.audio-list-no-results {margin-left: 10px;line-height:2}
+.audio-list-item {display:flex;background:#fafafa;border:1px solid #ddd;color:#333;display:block;margin:0 0 1px;padding:8px 15px;text-decoration:none;}
+.audio-list-item-artist:hover {text-decoration:underline;}
+.audio-list-item-album:hover {text-decoration:underline;}
+.audio-list-item-checkbox {float:left;}
+.video-list {list-style:none;margin:0 0 10px;padding:0;}
+.video-list-no-results {margin-left: 10px;line-height:2}
+.video-list-item {background:#fafafa;border:1px solid #ddd;color:#333;display:block;margin:0 0 1px;padding:8px 15px;text-decoration:none;}
+.video-list-item-album:hover {text-decoration:underline;}
+.video-list-item-detail:hover {text-decoration:underline;}
+.nav-menu-link { margin-left: 20px;}
+.input { margin-left: 10px;line-height:2;width:75%;}
+.label { margin-left: 10px;line-height:2;}
+.button { margin-left: 10px;}
+hr { border:none;height:1px;background-color:#333;}
+.vlc-iframe { width: 100%; height: 180px; border: none; }
+status { margin-left: 10px; }
+

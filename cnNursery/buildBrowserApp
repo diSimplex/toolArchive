@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# This bash script builds the Mithril based browserApp
+
+function copyBrowserApp {
+
+  export srcDir=$1
+  export destDir=$(pwd)
+
+  echo ""
+  echo "copying browserApp"
+  echo "  from $(basename $srcDir)"
+  echo "  to   $(basename $destDir)"
+
+  echo ""
+  cp -Ru $srcDir/browserApp $destDir
+  echo ""
+
+  echo "-----------------------------------------------------------------"
+}
+
+echo "-----------------------------------------------------------------"
+
+copyBrowserApp ../webserver
+copyBrowserApp ../interfaces/action
+copyBrowserApp ../interfaces/control
+copyBrowserApp ../interfaces/discovery
+
+cd browserApp
+
+# The webpack.config.js file is required to ensure that webpack v4.x.x can 
+# use YARN's advanced PlugNPlay package resolution. 
+#
+# see: https://github.com/arcanis/pnp-webpack-plugin
+#
+
+echo ""
+echo "Building the browserApp using webpack"
+echo ""
+yarn build
+echo ""
+echo "-----------------------------------------------------------------"
+echo ""

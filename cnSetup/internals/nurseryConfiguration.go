@@ -37,30 +37,31 @@ import (
 // altered by structure methods. 
 //
 type NurseryType struct {
-  Federation_Name string
-  Federation_Port uint
-  Name            string
-  Host            string
-  Hosts         []string
-  Interface       string
-  Messages_Port   uint
-  Monitor_Port    uint
-  Librarian_Port  uint
-  Html_Dir        string
-  Cert_Dir        string
-  Ca_Cert_Path    string
-  Cert_Path       string
-  Key_Path        string
-  Librarian_Url   string
-  NATS_Url        string
-  NATS_Routes   []string
-  Config_Path     string
-  NATS_Path       string
-  ENVS_Path       string
-  Work_Dir        string
-  Actions_Dir     string
-  Serial_Number   uint
-  Key_Size        uint
+  Federation_Name          string
+  Federation_Port          uint
+  Name                     string
+  Host                     string
+  Hosts                  []string
+  Interface                string
+  Messages_Port            uint
+  Monitor_Port             uint
+  Librarian_Port           uint
+  Html_Dir                 string
+  Cert_Dir                 string
+  Ca_Cert_Path             string
+  Cert_Path                string
+  Key_Path                 string
+  Librarian_Url            string
+  NATS_Url                 string
+  NATS_Federation_Routes []string
+  NATS_Message_Routes    []string
+  Config_Path              string
+  NATS_Path                string
+  ENVS_Path                string
+  Work_Dir                 string
+  Actions_Dir              string
+  Serial_Number            uint
+  Key_Size                 uint
 }
 
 var (
@@ -81,7 +82,8 @@ var (
     "",                       // Key_Path
     "https://localhost:4220", // Librarian_Url
     "nats://localhost:4221",  // NATS_Url
-    []string{},               // NATS_Routes
+    []string{},               // NATS_Federation_Routes
+    []string{},               // NATS_Message_Routes
     "",                       // Config_Path
     "",                       // NATS_Path
     "",                       // ENVS_Path
@@ -96,8 +98,16 @@ var (
 //
 // READS nursery;
 //
-func (nursery *NurseryType) ComputeNATS() string {
+func (nursery *NurseryType) ComputeFederationNATS() string {
   return "nats://"+nursery.Hosts[0]+":"+strconv.Itoa(int(nursery.Federation_Port))
+}
+
+// Compute the NATS (control) URL associated with a given Nursery.
+//
+// READS nursery;
+//
+func (nursery *NurseryType) ComputeMessageNATS() string {
+  return "nats://"+nursery.Hosts[0]+":"+strconv.Itoa(int(nursery.Messages_Port))
 }
 
 // Compute the Librarian URL associated with a given Nursery.
@@ -154,7 +164,7 @@ func (nursery *NurseryType) NormalizeConfig(
     if nursery.Config_Path   == "" { nursery.Config_Path   = nPathPrefix+"-config.yaml" }
     if nursery.NATS_Path     == "" { nursery.NATS_Path     = nursery.Cert_Dir+"/nats-server.conf" }
     if nursery.ENVS_Path     == "" { nursery.ENVS_Path     = nursery.Cert_Dir+"/pod-envs.sh" }
-    if nursery.NATS_Url      == "" { nursery.NATS_Url      = nursery.ComputeNATS() }
+    if nursery.NATS_Url      == "" { nursery.NATS_Url      = nursery.ComputeFederationNATS() }
     if nursery.Librarian_Url == "" { nursery.Librarian_Url = nursery.ComputeLibrarian() }
   }
   
@@ -177,18 +187,21 @@ func (nursery *NurseryType) NormalizeConfig(
 // CALLED BY: LoadConfiguration ONLY;
 //
 func (nursery *NurseryType) SetNatsRoutes(
-  natsRoutes  *[]string,
-  natsShuffle *[]int,
+  natsFederationRoutes *[]string,
+  natsMessageRoutes    *[]string,
+  natsShuffle          *[]int,
 ) {
-  shuffledRoutes := make([]string, len(*natsShuffle))
   rand.Shuffle(len(*natsShuffle), func(i, j int) {
     (*natsShuffle)[i], (*natsShuffle)[j] =
       (*natsShuffle)[j], (*natsShuffle)[i]
   })
+  nursery.NATS_Federation_Routes = make([]string, len(*natsShuffle))
+  nursery.NATS_Message_Routes    = make([]string, len(*natsShuffle))
   for i, j := range *natsShuffle {
-  	shuffledRoutes[i] = (*natsRoutes)[j]
+  	nursery.NATS_Federation_Routes[i] = (*natsFederationRoutes)[j]
+  	nursery.NATS_Message_Routes[i]    =
+  	  (*natsFederationRoutes)[(*natsShuffle)[j]]
   }
-  nursery.NATS_Routes = shuffledRoutes
 }
 
 // Write out the YAML configuration file requred to run a given cnNursery 
@@ -221,7 +234,7 @@ cert_path:       "{{.Cert_Path}}"
 key_path:        "{{.Key_Path}}"
 work_dir:        "{{.Work_Dir}}"
 actions_dir:     "{{.Actions_Dir}}"
-nats_routes:{{ range .NATS_Routes }}
+nats_routes:{{ range .NATS_Federation_Routes }}
   - {{ . }}{{ end }}
 `
 
@@ -271,7 +284,7 @@ http_port: {{.Monitor_Port}}
 cluster: {
   name: "{{.Federation_Name}}"
   port: {{.Federation_Port}}
-  routes: [{{ range .NATS_Routes }}
+  routes: [{{ range .NATS_Federation_Routes }}
     "{{ . }}",{{ end }}
   ]
 }

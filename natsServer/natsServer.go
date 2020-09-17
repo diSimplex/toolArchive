@@ -14,7 +14,7 @@
 
 // The connection to the cnNursery nats server.
 //
-package webserver
+package natsServer
 
 import (
   "fmt"
@@ -63,7 +63,7 @@ func ConnectServer(
   connectionsStr := strings.Join(connections, ",")
   theConnection, err := nats.Connect(connectionsStr)
   cnLog.MayBeFatal(
-    fmt.Sprintf("Could not connect to NATS servers [%s]", connections),
+    fmt.Sprintf("Could not connect to NATS servers [%s]", connectionsStr),
     err,
   )
   ns.Conn = theConnection

@@ -12,12 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
+var m = require("mithril")
 
-  ConTeXt Nurseries TypeSetting command used by the end user to manage the 
-  original source files used for typesetting a document and/or compiling 
-  source code. 
-  
-*/
-package main
+//var routes = {}
 
+//require("./interfaces/action").addRoutes(routes)
+//require("./interfaces/control").addRoutes(routes)
+//require("./interfaces/discovery").addRoutes(routes)
+//require("./interfaces/home").addRoutes(routes)
+
+//console.dir(routes, {depth: null, colors: true})
+
+//m.route(document.body, "/home", routes)
+
+m.render(document.body, "Hello World!")

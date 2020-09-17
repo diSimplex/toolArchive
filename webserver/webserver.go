@@ -18,6 +18,7 @@
 package webserver
 
 import (
+  "bytes"
   "crypto/tls"
   "crypto/x509"
   "encoding/json"
@@ -384,6 +385,18 @@ func (ws *WS) AddDeleteHandler(url string, handlerFunc http.HandlerFunc) error {
   return nil
 }
 
+type ESCFSMustByte func(bool, string) []byte
+
+func getReadSeekerForFrom(
+  filePath   string,
+  fsMustByte ESCFSMustByte,
+) io.ReadSeeker {
+  useLocal := false
+  if ! strings.HasPrefix(filePath, "/browserApp/") { useLocal = true }
+  return bytes.NewReader(fsMustByte(useLocal, filePath))
+}
+
+
 // Add a Get Handler for serving static files.
 //
 // This method adds the staticRoute and "/favicon.ico" (hidden) routes. 
@@ -397,7 +410,13 @@ func (ws *WS) AddStaticFileHandlers(
   faviconPath  string,
   staticRoute  string, 
   staticPath   string,
+  fsMustByte   ESCFSMustByte,
 ) error {
+
+//TODO
+// Use FSMustByte, bytes.NewReader, and http.ServeContent
+//TODO
+
   ws.BaseRoute.GetHandler = func (w http.ResponseWriter, r *http.Request) {
 
     //

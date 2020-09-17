@@ -12,39 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This code has been inspired by: Shane Utt's excellent article:
-//   https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
+//go:generate ./buildBrowserApp
+
+//go:generate esc -o browserApp.go ./browserApp/static
 
 package main
 
 import (
-  "crypto/tls"
-  "crypto/x509"
-  "encoding/json"
+  crand "crypto/rand"
+  "encoding/binary"
   "flag"
-  "fmt"
-  "github.com/jinzhu/configor"
-  "io/ioutil"
+  "github.com/diSimplex/ConTeXtNursery/cnTypeSetter/internals"
+  "github.com/diSimplex/ConTeXtNursery/logger"
+  "github.com/diSimplex/ConTeXtNursery/natsServer"
+  "github.com/diSimplex/ConTeXtNursery/webserver"
   "log"
-  "net/http"
+  "math/rand"
   "os"
-  "time"
+  "runtime"
 )
 
 //////////////////////////
 // Configuration variables
 //
-
-var config = struct {
-  Name         string
-  Primary_Url  string
-  Ca_Cert_Path string
-  Cert_Path    string
-  Key_Path     string
-}{}
-
 var configFileName string
+var configDir      string
 var showConfig     bool
+var browserAppDir  string
 
 /////////////////////////////
 // Logging and Error handling
@@ -57,61 +51,70 @@ func typeSetterMayBeFatal(logMessage string, err error) {
 
 func main() {
   const (
-    configFileNameDefault =  "nursery.yaml"
+    browserAppDirDefault  =  ""
+    browserAppDirUsage    = "An on disk directory in which to find the browser application "
+    configDirDefault      =  "/.config/cnNursery"
+    configDirUsage        =  "The configuration directory"
+    configFileNameDefault =  "cnTypeSetter.yaml"
     configFileNameUsage   =  "The configuration file to load"
     showConfigDefault     =  false
     showConfigUsage       =  "Show the loaded configuration"
   )
-  flag.StringVar(&configFileName, "config", configFileNameDefault, configFileNameUsage)
-  flag.StringVar(&configFileName, "c", configFileNameDefault, configFileNameUsage)
-  flag.BoolVar(&showConfig, "show", showConfigDefault, showConfigUsage)
-  flag.BoolVar(&showConfig, "s", showConfigDefault, showConfigUsage)
+  flag.StringVar(&browserAppDir,  "browserApp", browserAppDirDefault,               browserAppDirUsage)
+  flag.StringVar(&browserAppDir,  "b",          browserAppDirDefault,               browserAppDirUsage)
+  flag.StringVar(&configFileName, "config",     configFileNameDefault,              configFileNameUsage)
+  flag.StringVar(&configFileName, "c",          configFileNameDefault,              configFileNameUsage)
+  flag.StringVar(&configDir,      "dir",        os.Getenv("HOME")+configDirDefault, configDirUsage)
+  flag.StringVar(&configDir,      "d",          os.Getenv("HOME")+configDirDefault, configDirUsage)
+  flag.BoolVar(&showConfig,       "show",       showConfigDefault,                  showConfigUsage)
+  flag.BoolVar(&showConfig,       "s",          showConfigDefault,                  showConfigUsage)
   flag.Parse()
 
-  configor.Load(&config, configFileName)
+  cnLog := logger.CreateLogger("cnTypeSetter")
+  cnLog.SetPrintStack(true)
 
-  if showConfig {
-    configStr, _ := json.MarshalIndent(config, "", "  ")
-    fmt.Printf("%s\n", string(configStr))
-    os.Exit(0)
-  }
+  // seed the math/rand random number generator with a "random" seed
+  // see: https://stackoverflow.com/a/54491783
+  // (random is used when loading the configuration to ensure the NATS 
+  // routes are randomized) 
+  //
+  var randomSeed [8]byte
+  _, err := crand.Read(randomSeed[:])
+  cnLog.MayBeFatal("Could not read a random seed from the system random stream", err)
+  rand.Seed(int64(binary.LittleEndian.Uint64(randomSeed[:])))
 
-  cert, err := tls.LoadX509KeyPair(config.Cert_Path, config.Key_Path)
-  typeSetterMayBeFatal("Could not load cert/key pair", err)
+  config := CNTypeSetter.CreateConfiguration(cnLog)
+  config.LoadConfiguration(configDir, configFileName, browserAppDir, showConfig)
 
-  caCert, err := ioutil.ReadFile(config.Ca_Cert_Path)
-  typeSetterMayBeFatal("Could not load the CA certificate", err)
+  cnLog.Logf("cnTypeSetter: %s started", config.Name)
+  cnLog.Logf("numCPU: %d\n", runtime.NumCPU())
+  cnLog.Logf("GOMAXPROCS: %d\n", runtime.GOMAXPROCS(-1))
 
-  caCertPool := x509.NewCertPool()
-  caCertPool.AppendCertsFromPEM(caCert)
+  _ = natsServer.ConnectServer(config.Nats_Routes, cnLog)
 
-  // Setup HTTPS client
-  tlsConfig := &tls.Config{
-    ClientAuth:     tls.RequireAndVerifyClientCert,
-    Certificates: []tls.Certificate{cert},
-    RootCAs:        caCertPool,
-    ClientCAs:      caCertPool,
-  }
+  ws := webserver.CreateWebServer(
+    config.Interface, config.Port, `
 
-  transport := &http.Transport{
-    TLSClientConfig:    tlsConfig,
-    ForceAttemptHTTP2:  true,
-    MaxIdleConns:       10,
-    IdleConnTimeout:    30 * time.Second,
-    DisableCompression: true,
-  }
+The cnNursery process provides a RESTful interface to the federation of
+ConTeXt Nurseries.
 
-  client := &http.Client{
-    Transport: transport,
-  }
+Each ConTeXt Nursery in the federation is capable of managing the type
+setting of one or more ConTeXt based (sub)documents in parallel.
 
-  resp, err := client.Get(config.Primary_Url)
-  typeSetterMayBeFatal("Could not access the primary Nursery", err)
-  defer resp.Body.Close()
+`,
+    config.Ca_Cert_Path, config.Cert_Path, config.Key_Path,
+    cnLog,
+  )
+
+  err = ws.AddStaticFileHandlers(
+    config.Browser_App_Dir + "static/index.html",
+    config.Browser_App_Dir + "static/images/TeddyBear.ico",
+    "/static",
+    config.Browser_App_Dir + "static",
+    FSMustByte,
+  )
+  cnLog.MayBeError("Could not add static file handlers", err)
   
-  respBody, err := ioutil.ReadAll(resp.Body)
-  typeSetterMayBeFatal("Could not read the body of the response", err)
-
-  fmt.Printf("%s\n", string(respBody))
+//  ws.RunWebServer()
 
 }

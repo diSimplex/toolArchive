@@ -5,6 +5,9 @@ tmp
 # cnClient dependencies which are available on the web
 node_modules
 .yarn
+browserApp.go
+
+TeddyBear.ico
 
 # our binaries
 cnSetup/cnSetup

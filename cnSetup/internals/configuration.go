@@ -36,27 +36,28 @@ type ConfigType struct {
 
   // Name of the Federation of ConTeXt Nurseries
   //
-  Federation_Name       string `default:"nurseries"`
+  Federation_Name        string `default:"nurseries"`
 
   // Certificate information
   //
-  Key_Size              uint `default:"4096"`
-  Certificate_Authority CAType
+  Key_Size                uint `default:"4096"`
+  Certificate_Authority   CAType
 
   // Nurseries
   //
-  Nursery_Defaults  NurseryType
-  Nurseries       []NurseryType
-  NATS_Routes     []string
+  Nursery_Defaults         NurseryType
+  Nurseries              []NurseryType
+  NATS_Federation_Routes []string
+  NATS_Message_Routes    []string
 
   // Users
   //
-  User_Defaults         UserType
-  Users               []UserType
+  User_Defaults            UserType
+  Users                  []UserType
   
   // Auxilary fields for logging
   //
-  CSLog                *logger.LoggerType
+  CSLog                   *logger.LoggerType
 }
 
 // Create an (empty) configuration structure.
@@ -99,18 +100,24 @@ func (config *ConfigType) LoadConfiguration(
   // locate the primary Nursery and normalize each Nursery structure 
   //
   config.Nursery_Defaults.NormalizeConfig(0, &NurseryDefaults, config)
-  config.NATS_Routes = make([]string, len(config.Nurseries))
+  config.NATS_Federation_Routes = make([]string, len(config.Nurseries))
+  config.NATS_Message_Routes    = make([]string, len(config.Nurseries))
   natsShuffle := make([]int, len(config.Nurseries))
   for i, _ := range config.Nurseries {
     natsShuffle[i] = i
     config.Nurseries[i].NormalizeConfig(i, &config.Nursery_Defaults, config)
-    config.NATS_Routes[i] = config.Nurseries[i].ComputeNATS()
+    config.NATS_Federation_Routes[i] = config.Nurseries[i].ComputeFederationNATS()
+    config.NATS_Message_Routes[i]    = config.Nurseries[i].ComputeMessageNATS()
   }
 
-  // now explicitly set the primary url for each Nursery.
+  // now explicitly reshuffle the NATS routes for each cnNursery
   //
   for i, _ := range config.Nurseries {
-    config.Nurseries[i].SetNatsRoutes( &config.NATS_Routes, &natsShuffle )
+    config.Nurseries[i].SetNatsRoutes(
+      &config.NATS_Federation_Routes,
+      &config.NATS_Message_Routes,
+      &natsShuffle,
+    )
   }
 
   config.User_Defaults.NormalizeConfig(
@@ -123,6 +130,15 @@ func (config *ConfigType) LoadConfiguration(
       i,
       &config.User_Defaults,
       config,
+    )
+  }
+
+  // now explicitly reshuffle the NATS routes for each user
+  //
+  for i, _ := range config.Users {
+    config.Users[i].SetNatsRoutes(
+      &config.NATS_Message_Routes,
+      &natsShuffle,
     )
   }
     

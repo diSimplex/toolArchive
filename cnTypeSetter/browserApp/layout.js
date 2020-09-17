@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
+var m = require("mithril")
 
-  ConTeXt Nurseries TypeSetting command used by the end user to manage the 
-  original source files used for typesetting a document and/or compiling 
-  source code. 
-  
-*/
-package main
-
+module.exports = {
+  view: function(vnode) {
+    return m("main.layout", [
+      m("nav.nav-menu", [
+        m(m.route.Link, {href: "/home",      class: "nav-menu-link"}, "ConTeXt Nursery"),
+        m(m.route.Link, {href: "/action", class: "nav-menu-link"}, "Actions"),
+        m(m.route.Link, {href: "/heartbeat",  class: "nav-menu-link"}, "Discovery"),
+        m(m.route.Link, {href: "/control",  class: "nav-menu-link"}, "Control")
+      ]),
+      m("hr"),
+      m("section", vnode.children),
+    ])
+  }
+}

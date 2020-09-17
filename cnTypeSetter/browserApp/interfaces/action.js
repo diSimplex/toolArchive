@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
+var m = require("mithril")
 
-  ConTeXt Nurseries TypeSetting command used by the end user to manage the 
-  original source files used for typesetting a document and/or compiling 
-  source code. 
-  
-*/
-package main
+var actionRoutes = {}
 
+require("./action/action").addRoutes(actionRoutes)
+require("./action/actionConfig").addRoutes(actionRoutes)
+
+var Action = {
+  addRoutes: function(routes) {
+    for (var key in actionRoutes) {
+      routes[key] = actionRoutes[key]
+    }
+  }
+}
+
+module.exports = Action

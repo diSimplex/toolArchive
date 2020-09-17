@@ -111,7 +111,7 @@ setting of one or more ConTeXt based (sub)documents in parallel.
     config.Browser_App_Dir + "static/images/TeddyBear.ico",
     "/static",
     config.Browser_App_Dir + "static",
-    FSMustByte,
+    FSByte,
   )
   cnLog.MayBeError("Could not add static file handlers", err)
   

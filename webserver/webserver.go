@@ -29,6 +29,7 @@ import (
   "net"
   "net/http"
   "strings"
+  "time"
 )
 
 //////////////////////////////////////////////////////////////////////
@@ -61,6 +62,7 @@ type WS struct {
   Server    *http.Server
   HostPort   string
   BaseRoute *Route
+  InitTime   time.Time
   Log       *logger.LoggerType
 }
 
@@ -101,6 +103,7 @@ func CreateWebServer(
   // now create the WebServer structure itself
   //
   ws          := WS{}
+  ws.InitTime  = time.Now()
   ws.Log       = cnLog
   ws.BaseRoute = ws.CreateNewRoute("/", "", description, true)
   ws.HostPort  = host + ":" + port
@@ -385,15 +388,33 @@ func (ws *WS) AddDeleteHandler(url string, handlerFunc http.HandlerFunc) error {
   return nil
 }
 
-type ESCFSMustByte func(bool, string) []byte
+type ESCFSByte func(bool, string) ([]byte, error)
 
-func getReadSeekerForFrom(
+func (ws *WS) ServeESCFSFile(
+  w          http.ResponseWriter,
+  req       *http.Request,
   filePath   string,
-  fsMustByte ESCFSMustByte,
-) io.ReadSeeker {
+  fsByte     ESCFSByte,
+) {
   useLocal := false
   if ! strings.HasPrefix(filePath, "/browserApp/") { useLocal = true }
-  return bytes.NewReader(fsMustByte(useLocal, filePath))
+  contentBytes, err := fsByte(useLocal, filePath)
+  if err != nil {
+    w.WriteHeader(404)
+    ws.Log.Logf("could not find file [%s]", filePath)
+    filePath = "/browserApp/static/404.html"
+    contentBytes, err = fsByte(false, filePath)
+    if err != nil {
+      contentBytes = []byte(`
+<html>
+<head><title>Oops! That was not found!</title></head>
+<body><h1>Oops! That was not found!</h1></body>
+</html>
+`)
+    }
+  }
+  contentReader := bytes.NewReader(contentBytes)
+  http.ServeContent(w, req, filePath, ws.InitTime, contentReader)
 }
 
 
@@ -410,7 +431,7 @@ func (ws *WS) AddStaticFileHandlers(
   faviconPath  string,
   staticRoute  string, 
   staticPath   string,
-  fsMustByte   ESCFSMustByte,
+  fsByte       ESCFSByte,
 ) error {
 
 //TODO
@@ -437,7 +458,7 @@ func (ws *WS) AddStaticFileHandlers(
     }
     
     ws.Log.Logf("serving [%s] as \"/\"", baseHtmlPath)
-    http.ServeFile(w, r, baseHtmlPath)
+    ws.ServeESCFSFile(w, r, baseHtmlPath, fsByte)
   }
   
   err := ws.DescribeRoute("/favicon.ico", "The FavIcon", false)
@@ -449,7 +470,7 @@ func (ws *WS) AddStaticFileHandlers(
     "/favicon.ico",
     func(w http.ResponseWriter, r *http.Request) {
       ws.Log.Logf("serving [%s] as favicon.ico", faviconPath)
-      http.ServeFile(w, r, faviconPath)
+      ws.ServeESCFSFile(w, r, faviconPath, fsByte)
     },
   )
   if err != nil {
@@ -471,7 +492,7 @@ func (ws *WS) AddStaticFileHandlers(
       httpPath := r.URL.Path
       filePath := staticPath+strings.TrimPrefix(httpPath, staticRoute)
       ws.Log.Logf("serving [%s] from [%s]", httpPath, filePath)
-      http.ServeFile(w, r, filePath)
+      ws.ServeESCFSFile(w, r, filePath, fsByte)
     },
   )
   if err != nil {

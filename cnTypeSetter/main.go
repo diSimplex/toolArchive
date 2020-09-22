@@ -115,6 +115,5 @@ setting of one or more ConTeXt based (sub)documents in parallel.
   )
   cnLog.MayBeError("Could not add static file handlers", err)
   
-//  ws.RunWebServer()
-
+  ws.RunWebServer()
 }

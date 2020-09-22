@@ -102,6 +102,9 @@ func (config *ConfigType) LoadConfiguration(
     config.Browser_App_Dir = config.Browser_App_Dir + "/"
   }
 
+  if config.Interface == "" { config.Interface = "0.0.0.0" }
+  if config.Port      == "" { config.Port      = "4224"}
+
   if showConfig {
     configBytes, _ := json.MarshalIndent(config, "", "  ")
     fmt.Printf("%s\n", string(configBytes))

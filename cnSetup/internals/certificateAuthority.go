@@ -216,10 +216,10 @@ func (ca *CAType) CreateNewCA() error {
   // Apply Certificate Authority only modifications
   //
   ca.Cert.IsCA = true
-  ca.Cert.ExtKeyUsage = []x509.ExtKeyUsage{
-      x509.ExtKeyUsageClientAuth,
-      x509.ExtKeyUsageServerAuth,
-    }
+//  ca.Cert.ExtKeyUsage = []x509.ExtKeyUsage{
+//      x509.ExtKeyUsageClientAuth,
+//      x509.ExtKeyUsageServerAuth,
+//    }
   ca.Cert.KeyUsage = x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign 
   ca.Cert.BasicConstraintsValid =true
   

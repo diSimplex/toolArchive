@@ -4,13 +4,14 @@
 # provide web-browser access to all of the separate parts of the ConTeXt 
 # Nursery project. 
 
-source /common/ipAddress
+#source /common/ipAddress
+fqdn=$(hostname -f)
 
 reset
 
 echo "-----------------------------------------------------------------"
 echo ""
-echo "http://$ipAddress:6060/index.html"
+echo "http://$fqdn:6060/index.html"
 echo ""
 echo "use ./tools/killDocServers to kill all document servers"
 echo ""
@@ -36,7 +37,7 @@ echo ""
 echo ""
 echo "-----------------------------------------------------------------"
 echo ""
-echo "http://$ipAddress:6060/index.html"
+echo "http://$fqdn:6060/index.html"
 echo ""
 echo "use ./bin/killDocServers to kill all document servers"
 echo ""

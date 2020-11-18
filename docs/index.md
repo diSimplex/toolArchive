@@ -14,6 +14,10 @@
 
 DIRECTORY_INDEX
 
+# Use cases
+
+- [Complex](useCases/complex.md)
+
 # Interfaces
 
 - [Interfaces (readme)](interfaces/Readme.md)

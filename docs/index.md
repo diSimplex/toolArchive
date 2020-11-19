@@ -14,9 +14,7 @@
 
 DIRECTORY_INDEX
 
-# Use cases
-
-- [Complex](useCases/complex.md)
+- [Use cases](useCases/index.md)
 
 # Interfaces
 

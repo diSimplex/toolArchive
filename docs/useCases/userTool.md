@@ -48,7 +48,11 @@ initial dependency graph together with required goals.
 
 ### Interpreting Lua
 
-See: https://github.com/aarzilli/golua
+See: https://github.com/aarzilli/golua or? https://github.com/xiexiao/golua
+
+https://github.com/stevedonovan/luar/
+
+https://github.com/fiatjaf/lunatico
 
 ### Interacting with the NATS messageing service
 
@@ -72,3 +76,35 @@ The Global configuration will consisit of a collection of YAML files listing:
 
 The Local configuration files will describe the top-level files and their 
 associated deliverables.
+
+Will use Lua scripts for local configuration and YAML or Lua for global 
+configuration. 
+
+See: https://blog.gopheracademy.com/advent-2016/go-syntax-for-dsls/
+  http://lua-users.org/lists/lua-l/2006-03/msg00259.html
+  http://lua-users.org/lists/lua-l/2006-03/msg00265.html
+
+  https://martinfowler.com/articles/rake.html
+  https://en.wikipedia.org/wiki/SCons
+  https://stackoverflow.com/a/19182835
+  https://dnaeon.github.io/choosing-lua-as-the-ddl-and-config-language/
+
+YAML replacement?!? https://github.com/hashicorp/hcl
+
+### Dependency analysis
+
+**ANSI-C:** see `-M` (and friends) in:
+https://gcc.gnu.org/onlinedocs/gcc-10.2.0/gcc/Preprocessor-Options.html#Preprocessor-Options 
+
+**ConTeXt:** see ???
+
+We will use the *new* (and improved?) LMTX version of ConTeXt (which uses 
+even more Lua internally). 
+
+Our own ConTeXt modules which have a dependency mode to only output a 
+dependency file as a Lua script. With the `context --once` command line. 
+See page 9 of http://www.pragma-ade.com/general/manuals/tools-mkiv.pdf . 
+
+See also: http://www.pragma-ade.com/general/manuals/luametatex.pdf
+
+

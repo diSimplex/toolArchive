@@ -3,6 +3,7 @@ module github.com/diSimplex/ConTeXtNursery
 go 1.14
 
 require (
+	github.com/aarzilli/golua v0.0.0-20201110102514-3c8365d671e8
 	github.com/jinzhu/configor v1.1.1
 	github.com/mjibson/esc v0.2.0 // indirect
 	github.com/nats-io/nats.go v1.10.0

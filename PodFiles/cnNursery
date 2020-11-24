@@ -7,19 +7,38 @@
 
 set -e
 
+# We expose the following ports:
+# - LIBRARIAN_PORT  4220
+# - FEDERATION_PORT 4221
+# - MESSAGES_PORT   4222
+# - MONITOR_PORT    4223
+
 echo ""
 echo "Creating pod: cnPod"
 podman pod create \
   --name cnPod \
-  --publish 0.0.0.0:8989:8989
+  --publish 0.0.0.0:4220-4223:4220-4223
 
 echo ""
-echo "Creating container: cnNursery"
+echo "Creating container: cnMessages"
 podman container create \
-  --name cnNursery \
+  --name cnMessages \
   --restart always \
   -v $(pwd):/cnNursery \
   -v /etc/timezone:/etc/timezone:ro \
   -v /etc/localtime:/etc/localtime:ro \
   --pod cnPod \
-  localregistry:5000/cnnursery_$(uname -m)
+  localregistry:5000/cnmessages_$(uname -m)
+
+#   --publish 0.0.0.0:8989:8989
+# 
+# echo ""
+# echo "Creating container: cnNursery"
+# podman container create \
+#   --name cnNursery \
+#   --restart always \
+#   -v $(pwd):/cnNursery \
+#   -v /etc/timezone:/etc/timezone:ro \
+#   -v /etc/localtime:/etc/localtime:ro \
+#   --pod cnPod \
+#   localregistry:5000/cnnursery_$(uname -m)

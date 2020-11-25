@@ -11,5 +11,6 @@ require (
 	github.com/sethvargo/go-password v0.1.3
 	github.com/shirou/gopsutil v2.20.2+incompatible
 	github.com/stretchr/testify v1.5.1
+	github.com/xiexiao/golua v0.0.0-20201125072500-ba522f251a79
 	golang.org/x/tools v0.0.0-20200917161530-60aba8ac75fb // indirect
 )

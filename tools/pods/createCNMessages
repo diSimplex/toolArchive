@@ -3,16 +3,16 @@
 # This bash script creates the ConTeXTNursery pod using podman
 
 echo ""
-echo "Creating container: [cnNursery]"
+echo "Creating container: [cnMessages]"
 
 podman pull --tls-verify=false $imagePrefix/cnmessages_$imageArch
 
 podman container create \
-  --name cnNursery \
+  --name cnMessages \
   --restart always \
   -v $configDir:/cnNursery/conf \
   -v /etc/timezone:/etc/timezone:ro \
   -v /etc/localtime:/etc/localtime:ro \
   --pod cnNursery \
-  $imagePrefix/cnnursery_$imageArch \
+  $imagePrefix/cnmessages_$imageArch \
 

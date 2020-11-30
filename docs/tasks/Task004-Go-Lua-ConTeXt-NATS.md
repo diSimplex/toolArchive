@@ -23,11 +23,12 @@
    5. **completed** using uuid (lua) ( https://github.com/Tieske/uuid )
    6. **completed** using lua-nats ( https://github.com/DawnAngel/lua-nats ) using both lunajson and dkjson
 3. **completed** (re)setup OCI-repository on pi01
-4. (re)Run NATS inside a podman pod
-5. (re)Ensure NATS is federated across muplitiple machines/pods.
-6. Issue NATS messages from Lua scripts running inside ConTeXt
-7. Issue NATS messages from Lua scripts running inside GoLang
-8. Issue NATS messages directly from GoLang
+4. **completed** (re)Run NATS inside a podman pod
+5. **completed** (re)Ensure NATS is federated across muplitiple machines/pods.
+6. **completed** Issue NATS messages from Lua scripts
+7. **completed** Issue NATS messages from Lua scripts running inside ConTeXt
+8. **completed** Issue NATS messages from Lua scripts running inside GoLang
+9. **completed** Issue NATS messages directly from GoLang
  
 ## Architecture
 
@@ -35,9 +36,6 @@
 
 We will use https://github.com/xiexiao/golua since it already adds the 
 -ldl to allow Lua's use of shared libraries on linux machines.
-
-**(re)Run NATS inside a podman pod**
-
 
 ## Problems
 
@@ -50,7 +48,8 @@ We will use https://github.com/xiexiao/golua since it already adds the
 
    As an alterntive, for ConTeXt, if we have through-put problems with the 
    pure lua JSON implementations, we might use the C NATS client 
-   https://github.com/nats-io/nats.c which is up to date. 
+   https://github.com/nats-io/nats.c which is up to date. But alas, 
+   ConTeXt will not currently run shared library lua modules. 
 
 2. ConTeXt requires the `--permitloadlib` option to allow external Lua 
    shared modules to be loaded. However some `lua_` symbols seem to be 
@@ -62,12 +61,6 @@ We will use https://github.com/xiexiao/golua since it already adds the
    tools: http://dkolf.de/src/dkjson-lua.fsl/home (which uses lpeg for 
    speedup) or https://github.com/grafi-tt/lunajson (which uses its own 
    internal optimization). 
-
-4. We need a simplified version of docker-compose probably written in 
-   Lua/YAML (since ConTeXt provides Lua for scritps). Use 
-   https://github.com/exosite/lua-yaml for the Lua-YAML loading. (We can 
-   not use wrapper of LibYAML since that requires `--permitloadlib` which 
-   does not yet work soon.... but not yet) 
 
 ## Reflections
 

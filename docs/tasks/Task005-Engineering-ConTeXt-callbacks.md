@@ -2,9 +2,9 @@
 
 # Task 005 - Showing that ConTeXt callbacks can be used to reduce computation
 
-1. **paused** Find Lua callbacks to stop pdf generation
+1. **completed** Find Lua callbacks to stop pdf generation
 
-2. **paused** Find Lua callbacks to stop page setting
+2. **completed** Find Lua callbacks to stop page setting
 
 ## Architecture
 
@@ -40,8 +40,57 @@ See Hans Hagen's reply: [[NTG-context] Using ConTeXt-LMTX for modern
 Mathematically-Literate-Programming 1/2 Hans 
 Hagen](https://mailman.ntg.nl/pipermail/ntg-context/2020/100481.html).
 
+Some example code that I placed just before `\startdocument` or 
+`\startcomponent` 
+
+```
+\def\test{
+  \directlua{
+    print("Hello from test")
+  }
+}
+
+\startlua
+print("Hello from lua")
+
+function append_to_vlist_filter()
+  return nil
+end
+
+callbacks.register("append_to_vlist_filter", append_to_vlist_filter)
+\stoplua
+```
+
 ## Problems
 
-1. 
+I had problems getting the `\startlua` `\stoplua` working. The primary 
+problem was un-observed Lua compilation failures. 
 
 ## Reflections
+
+**luametatex document** 
+
+Using `pre_output_filter` to return false, empties the page (except for 
+headers/footers) and saves about 6 seconds (out of 18 seconds). **BUT** 
+the `luametatex.tuc` is ruined. As Hans Hagen suggested: 
+
+> but keep in mind that multipass data is flushed as part of the shipout 
+> (because it is often location and order bound) 
+
+Using `append_to_vlist_filter` to return nil, empties (nearly) everything 
+(but seems to yield a blank page per chapter). This saves 8 seconds (out 
+of 18). **BUT** as expcected the `luametatex.tuc` is ruined. 
+
+However, TeX macros are still run (so a simple \test macro called into Lua 
+and printed "Hello from test").
+
+**luametatex document** 
+
+Using `append_to_vlist_filter` to return nil, empties (nearly) everything 
+(but seems to yield a blank page per chapter). This saves 6 seconds (out 
+of 190). **BUT** as expcected the `luametatex.tuc` is ruined. 
+
+**Overall**
+
+These (rather crude) attempts at "stopping" computation at various points 
+in the TeX pipeline do not actually show much benefit.

@@ -36,7 +36,20 @@
 2. How will the coordinator keep track of which TUC values depend upon 
    which sub-documents? 
 
+2. Where should new ConTeXt modules be put? In one of the following 
+   places: 
+
+   - $HOME/texmf
+   - $CONTEXT/tex/texmf-local
+   - $CONTEXT/tex/texmf-projects
+
 ## Reflections
 
 Reading the mtx-contex.lua script only the `*.tuc` is used/monitored for 
 multi-pass information. 
+
+## Resources
+
+- https://wiki.contextgarden.net/Command/env
+- https://wiki.contextgarden.net/Commands_with_KeyVal_arguments
+

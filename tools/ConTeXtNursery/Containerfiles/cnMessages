@@ -1,0 +1,39 @@
+# Dockerfile for multi-stage build of ConTeXtNursery NATS messaging server
+#
+# see: https://github.com/nats-io/nats-server/blob/master/docker/Dockerfile.alpine
+# see: https://www.cloudreach.com/en/resources/blog/cts-build-golang-dockerfiles/
+# see: https://docs.docker.com/engine/reference/builder/
+#
+# BUILD STAGE
+#
+FROM golang:alpine as builder
+
+RUN apk update && apk add git
+
+RUN mkdir /build
+
+WORKDIR /build
+
+RUN git clone --depth 5 https://github.com/nats-io/nats-server.git
+
+WORKDIR /build/nats-server
+
+RUN go build
+
+# FINAL STAGE
+#
+FROM alpine
+
+RUN mkdir -p /cnNursery/conf
+
+RUN adduser -S -D -h /cnMessages cnmu
+
+USER cnmu
+
+COPY --from=builder /build/nats-server/nats-server /bin/
+
+WORKDIR /cnMessages
+
+ENTRYPOINT ["/bin/nats-server"]
+
+CMD ["-c", "/cnNursery/conf/nats-server.conf"]

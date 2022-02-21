@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# This bash script runs the collection of document servers needed to 
+# provide web-browser access to all of the separate parts of the ConTeXt 
+# Nursery project. 
+
+#source /common/ipAddress
+fqdn=$(hostname -f)
+
+reset
+
+echo "-----------------------------------------------------------------"
+echo ""
+echo "http://$fqdn:6060/index.html"
+echo ""
+echo "use ./tools/killDocServers to kill all document servers"
+echo ""
+echo "-----------------------------------------------------------------"
+echo ""
+
+rm -rf tmp/html
+docTool docs tmp/html
+
+echo "" 
+
+pushd tmp/html
+webfsd -p 6060 -F &
+popd
+
+echo ""
+
+#godoc --http=0.0.0.0:6061 --goroot=. &
+godoc --http=0.0.0.0:6061 &
+
+echo ""
+
+echo ""
+echo "-----------------------------------------------------------------"
+echo ""
+echo "http://$fqdn:6060/index.html"
+echo ""
+echo "use ./bin/killDocServers to kill all document servers"
+echo ""
+echo "-----------------------------------------------------------------"
+echo ""

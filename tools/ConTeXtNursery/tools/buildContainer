@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# This bash script builds a docker image and pushes it to a local docker 
+# registry. 
+
+if test $# -ne 1 ; then
+  echo ""
+  echo "usage buildContainer <ContainerFileName>"
+  echo ""
+  exit -1
+fi
+
+source /etc/os-release
+
+export tagPrefix=oci-registry:5000
+
+export tag=$tagPrefix/$(echo $1 | tr '[:upper:]' '[:lower:]')_$(uname -m)
+
+podman build -f Containerfiles/$1 -t $tag .
+
+podman push --tls-verify=false $tag

@@ -1,0 +1,34 @@
+# Dockerfile for multi-stage build of ConTeXtNursery container
+#
+# see: https://www.cloudreach.com/en/resources/blog/cts-build-golang-dockerfiles/
+# see: https://docs.docker.com/engine/reference/builder/
+#
+# BUILD STAGE
+#
+FROM golang:alpine as builder
+
+RUN apk update && apk add git
+
+RUN mkdir /build
+
+ADD . /build
+
+WORKDIR /build/cnSetup
+
+RUN go get -v
+
+RUN go build -o cnSetup -v .
+
+# FINAL STAGE
+#
+FROM alpine
+
+RUN adduser -S -D -H -h /cnSetup cnsu
+
+USER cnsu
+
+COPY --from=builder /build/cnSetup/cnSetup /cnSetup/
+
+WORKDIR /cnSetup
+
+CMD ["./cnSetup"]

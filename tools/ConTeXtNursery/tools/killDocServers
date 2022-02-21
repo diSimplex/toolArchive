@@ -1,0 +1,16 @@
+#!/bin/bash 
+
+# This bash server kills the collection of document servers started by 
+# `docs/runDocServers` 
+
+ps -ef | grep godoc | grep -v grep | while read line ; do
+  let pid=$(echo $line | cut -f 2 -d " ")
+  echo killing $pid \(godoc\)
+  kill -9 $pid
+done
+
+ps -ef | grep webfsd | grep -v grep | while read line ; do
+  let pid=$(echo $line | cut -f 2 -d " ")
+  echo killing $pid \(webfsd\)
+  kill -9 $pid
+done

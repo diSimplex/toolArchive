@@ -1,0 +1,53 @@
+# A YAML description of the control RESTful interface
+
+description: |
+  Responsible for managing the up, down, and pause state of either a given 
+  Nursery or the whole federation.
+
+interface:
+  - url: /control
+    method: GET
+    credentials: CommonName of the Client X509 certificate
+    action: None
+    response: The current state of the federation
+
+  - url: /control/up
+    method: GET
+    credentials: CommonName of the Client X509 certificate
+    action: brings *this* Nursery back to the "up" state
+    response: The current state of the federation
+
+  - url: /control/pause
+    method: GET
+    credentials: CommonName of the Client X509 certificate
+    action: brings *this* Nursery to the "pasued" state
+    response: The current state of the federation
+
+  - url: /control/kill
+    method: GET
+    credentials: CommonName of the Client X509 certificate
+    action: *this* cnNursery is shutdown and no longer responds
+    response: None
+
+  - url: /control/all/up
+    method: GET
+    credentials: CommonName of the Client X509 certificate
+    action: |
+      Walks through the federation and sends the /control/up message
+    response: The current state of the federation
+
+  - url: /control/all/pause
+    method: GET
+    credentials: CommonName of the Client X509 certificate
+    action: |
+      Walks through the federation and sends the /control/pause message
+    response: The current state of the federation
+
+  - url: /control/all/kill
+    method: GET
+    credentials: CommonName of the Client X509 certificate
+    action: |
+      Walks through the federation and sends the /control/kill message
+    response: None
+
+

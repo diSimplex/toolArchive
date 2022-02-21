@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# This bash script creates the ConTeXTNursery pod using podman
+
+if test $# -ne 1 ; then
+  echo ""
+  echo "usage createPod <podConfigurationDir>"
+  echo ""
+  exit -1
+fi
+
+podDir="$( dirname "$( readlink -f "${BASH_SOURCE[0]}" )" )"
+
+function createAContainer {
+  $podDir/$1
+}
+
+set -e
+
+source /etc/os-release
+
+export registryHost=oci-registry
+
+export registryPort=5000
+
+export imagePrefix=${registryHost}:${registryPort}
+
+export imageArch=$(uname -m)
+
+export configDir=$(readlink -f $1)
+
+echo ""
+echo "Registry      host: $registryHost"
+echo "Registry      port: $registryPort"
+echo "Image       prefix: $imagePrefix"
+echo "Image architecture: $imageArch"
+echo "Configuration  dir: $configDir"
+
+echo ""
+if command -v nc &> /dev/null
+then
+  if nc -zw3 $registryHost $registryPort ; then
+    echo "Found registry $registryHost on port $registryPort"
+  else
+    echo "Could NOT find registry $registryHost on port $registryPort"
+    echo "Is the registry running?"
+    exit -1
+  fi
+else
+  echo "Could not find the netcat (nc) tool..."
+  echo "...so could not determine if the registry $registryHost is running!"
+fi
+
+source $configDir/pod-envs.sh
+
+echo ""
+echo "Creating       pod: [cnNursery]"
+podman pod create \
+  --name cnNursery \
+  --publish 0.0.0.0:$LIBRARIAN_PORT:$LIBRARIAN_PORT \
+  --publish 0.0.0.0:$FEDERATION_PORT:$FEDERATION_PORT \
+  --publish 0.0.0.0:$MESSAGES_PORT:$MESSAGES_PORT \
+  --publish 0.0.0.0:$MONITOR_PORT:$MONITOR_PORT \
+
+
+createAContainer createCNMessages
+#createAContainer createCNNursery
+
+echo ""
+echo "Are the ports:"
+echo "  $LIBRARIAN_PORT (librarian)"
+echo "  $FEDERATION_PORT (federation)"
+echo "  $MESSAGES_PORT (messages)"
+echo "  $MONITOR_PORT (monitor)"
+echo "allowed through your firewall?"
+echo ""
+echo "This cnNursery pod uses these ports to communicate"
+echo "with any other cnNursery pods in your network." 
+echo ""

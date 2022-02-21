@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# This bash script installs the node.js packages required to build the 
+# Mithril based browserApp 
+
+echo ""
+echo "Installing the YARN node.js package manager"
+echo ""
+npm install -g yarn
+
+cd browserApp
+
+echo ""
+echo "Upgrading YARN to version 2.x.x (to use PlugNPlay)"
+echo ""
+yarn set version berry
+
+echo ""
+echo "Installing all browserApp dependencies"
+echo ""
+yarn install
+echo ""
